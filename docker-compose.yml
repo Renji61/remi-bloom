@@ -39,23 +39,5 @@ services:
       retries: 3
     restart: unless-stopped
 
-  caddy:
-    image: caddy:alpine
-    container_name: remi-bloom-proxy
-    environment:
-      DOMAIN: ${DOMAIN:-localhost}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
-    restart: unless-stopped
-
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:

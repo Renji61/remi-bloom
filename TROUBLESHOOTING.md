@@ -46,9 +46,9 @@ curl -H "x-seed-secret: $REMI_BLOOM_SEED_SECRET" https://your-domain.com/api/see
 
 Verify:
 
-- `AUTH_URL=https://your-domain.com`
+- `AUTH_URL` matches the browser URL, including port if needed.
 - Browser uses the same hostname.
-- Caddy or any upstream proxy forwards HTTPS correctly.
+- Any upstream proxy forwards the request correctly.
 - System clock is correct.
 
 ## Offline Or PWA Behavior Looks Stale
@@ -78,12 +78,14 @@ If the package is public, verify the image name:
 ghcr.io/renji61/remi-bloom:latest
 ```
 
-## Production Compose Still Builds Locally
+## Production Compose Still Builds Locally Or Network Fails
 
-Use both compose files:
+Use the standalone production compose for Dockhand and production pulls:
 
 ```sh
-docker compose -f docker-compose.yml -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml config
 ```
 
-The merged `app` service should show `image: ghcr.io/renji61/remi-bloom:latest` and no `build` block.
+The `app` service should show `image: ghcr.io/renji61/remi-bloom:latest` and no `build` block.
+
+If Docker reports address pool exhaustion, keep the explicit `remi_bloom_net` network in `docker-compose.prod.yml`. It reserves `10.20.0.0/24` for this stack.

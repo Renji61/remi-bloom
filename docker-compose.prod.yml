@@ -1,12 +1,21 @@
-# Production override for docker-compose.yml
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
 services:
   postgres:
+    image: postgres:17-alpine
+    container_name: remi-bloom-db
     environment:
+      POSTGRES_DB: remi_bloom
+      POSTGRES_USER: remi_bloom
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - remi_bloom_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remi_bloom"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     # Add automated backups via pg_dump (optional)
     # backup:
     #   image: prodrigestivill/postgres-backup-local:17-alpine
@@ -21,31 +30,32 @@ services:
     #     - pgbackups:/backups
     #   depends_on:
     #     - postgres
-    restart: unless-stopped
 
   app:
-    build: !reset null
     image: ghcr.io/renji61/remi-bloom:${REMI_BLOOM_IMAGE_TAG:-latest}
+    container_name: remi-bloom-app
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://remi_bloom:${DB_PASSWORD}@postgres:5432/remi_bloom
       AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_URL: https://${DOMAIN:-your-domain.com}
+      AUTH_URL: ${AUTH_URL}
       REMI_BLOOM_SEED_SECRET: ${REMI_BLOOM_SEED_SECRET}
-    restart: unless-stopped
-
-  caddy:
-    environment:
-      DOMAIN: ${DOMAIN:-your-domain.com}
     ports:
-      - "80:80"
-      - "443:443"
+      - "4131:4131"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - remi_bloom_net
+
+networks:
+  remi_bloom_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24
 
 volumes:
   pgdata:
-    driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
     driver: local

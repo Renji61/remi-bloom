@@ -9,7 +9,7 @@ REMI Bloom is a local-first plant and garden management PWA. It uses Next.js, Ne
 - Automatic sync back to Postgres when connectivity returns.
 - NextAuth credentials login with bcrypt-backed Postgres users.
 - Installable PWA with offline navigation fallback.
-- Docker Compose stack with Postgres, app, and optional Caddy reverse proxy.
+- Docker Compose stack with Postgres and the app exposed on port `4131`.
 
 ## Local Development
 
@@ -34,10 +34,10 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-For production/Dockhand installs, use the GHCR image with the production override:
+For production/Dockhand installs, use the standalone production compose with the GHCR image:
 
 ```sh
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The production image is:
@@ -46,7 +46,7 @@ The production image is:
 ghcr.io/renji61/remi-bloom:latest
 ```
 
-See `DEPLOYMENT.md` for required environment variables, migrations, admin bootstrap, Caddy/domain setup, and upgrade notes.
+See `DEPLOYMENT.md` for required environment variables, migrations, admin bootstrap, and upgrade notes.
 
 ## First Admin Bootstrap
 
