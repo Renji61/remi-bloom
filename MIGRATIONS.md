@@ -1,13 +1,14 @@
 # Database Migrations
 
-Committed Drizzle migrations are the source of truth for REMI Bloom deployments.
+Committed SQL migrations are the source of truth for REMI Bloom deployments.
 
-Run migrations before starting the application:
+For local development, generate and run migrations with:
 
 ```sh
+npm run db:generate
 npm run db:migrate
 ```
 
-The Docker image does not generate migrations during build. Generate new migrations during development, commit them under `src/db/migrations`, then run `npm run db:migrate` against the target database before app start.
+The Docker image does not generate migrations during build. Generate new migrations during development, commit them under `src/db/migrations`, then validate them locally.
 
-For Docker Compose and Dockhand deployments, run migrations as a deliberate deployment step using the production `DATABASE_URL` before starting or upgrading the app. This avoids hidden startup side effects and keeps failed migrations visible to the operator.
+For Docker Compose and Dockhand deployments, the app container runs bundled SQL migrations automatically before starting `server.js`. Applied filenames are tracked in `__remi_bloom_migrations`; an existing initialized database without tracking rows is baselined so already-created tables are not recreated.

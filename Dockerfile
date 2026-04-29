@@ -37,6 +37,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/src/db/migrations ./src/db/migrations
+COPY scripts/start-server.mjs ./scripts/start-server.mjs
 
 USER nextjs
 
@@ -45,4 +46,4 @@ EXPOSE 4131
 ENV PORT=4131
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "scripts/start-server.mjs"]

@@ -56,13 +56,16 @@ Set `AUTH_URL` to the exact URL users will open in the browser.
 
 ## Database Migrations
 
-Committed Drizzle migrations are the source of truth. Run migrations before starting or upgrading the app:
+Committed SQL migrations under `src/db/migrations` are the source of truth. The Docker image runs bundled SQL migrations automatically before starting the app, so first-time Dockhand installs do not need a manual `psql` step.
+
+For local development, generate and run migrations with:
 
 ```sh
+npm run db:generate
 npm run db:migrate
 ```
 
-For Docker deployments, run migrations from a checkout or CI environment that has the same `DATABASE_URL` as production. The app image contains committed migrations, but it does not silently migrate on start.
+On startup, the container tracks applied migration filenames in `__remi_bloom_migrations`. If it detects an existing initialized schema without tracking rows, it marks the bundled migrations as already applied.
 
 ## First Admin Bootstrap
 
@@ -83,9 +86,8 @@ After seeding:
 
 1. Back up Postgres.
 2. Pull the new image tag.
-3. Run migrations.
-4. Restart the stack.
-5. Verify `/api/ping` and login.
+3. Restart the stack.
+4. Verify `/api/ping` and login.
 
 ```sh
 docker compose -f docker-compose.prod.yml pull
