@@ -1,0 +1,51 @@
+# Production override for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Add automated backups via pg_dump (optional)
+    # backup:
+    #   image: prodrigestivill/postgres-backup-local:17-alpine
+    #   environment:
+    #     POSTGRES_HOST: postgres
+    #     POSTGRES_DB: remi_bloom
+    #     POSTGRES_USER: remi_bloom
+    #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+    #     BACKUP_DIR: /backups
+    #     BACKUP_KEEP_DAYS: 7
+    #   volumes:
+    #     - pgbackups:/backups
+    #   depends_on:
+    #     - postgres
+    restart: unless-stopped
+
+  app:
+    build: !reset null
+    image: ghcr.io/renji61/remi-bloom:${REMI_BLOOM_IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://remi_bloom:${DB_PASSWORD}@postgres:5432/remi_bloom
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: https://${DOMAIN:-your-domain.com}
+      REMI_BLOOM_SEED_SECRET: ${REMI_BLOOM_SEED_SECRET}
+    restart: unless-stopped
+
+  caddy:
+    environment:
+      DOMAIN: ${DOMAIN:-your-domain.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

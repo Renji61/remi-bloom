@@ -1,0 +1,52 @@
+{
+  "name": "remi-bloom",
+  "version": "1.0.0",
+  "private": true,
+  "description": "REMI Bloom — Plant management & garden planning PWA",
+  "scripts": {
+    "dev": "next dev -p 4131 -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -p 4131",
+    "reboot": "next build && next start -p 4131",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "lucide-react": "^0.400.0",
+    "framer-motion": "^11.0.0",
+    "dexie": "^4.0.0",
+    "serwist": "^9.0.0",
+    "@serwist/next": "^9.0.0",
+    "react-konva": "^19.0.0",
+    "konva": "^9.0.0",
+    "@radix-ui/react-dialog": "^1.0.0",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-tabs": "^1.0.0",
+    "@radix-ui/react-popover": "^1.0.0",
+    "zustand": "^5.0.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0",
+    "drizzle-orm": "^0.38.0",
+    "postgres": "^3.4.0",
+    "next-auth": "beta",
+    "@auth/drizzle-adapter": "^1.7.0",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "postcss": "^8.0.0",
+    "autoprefixer": "^10.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "drizzle-kit": "^0.30.0",
+    "@types/bcryptjs": "^2.4.6"
+  }
+}

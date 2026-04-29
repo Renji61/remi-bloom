@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #0e1513;
+  --color-surface-dim: #0e1513;
+  --color-surface-bright: #333b39;
+  --color-surface-container: #1a211f;
+  --color-surface-container-low: #161d1b;
+  --color-surface-container-lowest: #09100e;
+  --color-surface-container-high: #242b2a;
+  --color-surface-container-highest: #2f3634;
+  --color-surface-variant: #2f3634;
+  --color-on-surface: #dde4e1;
+  --color-on-surface-variant: #bacac5;
+  --color-inverse-surface: #dde4e1;
+  --color-inverse-on-surface: #2b3230;
+  --color-outline: #859490;
+  --color-outline-variant: #3c4a46;
+  --color-primary: var(--theme-primary, #57f1db);
+  --color-on-primary: var(--theme-onPrimary, #003731);
+  --color-primary-container: var(--theme-primaryContainer, #2dd4bf);
+  --color-on-primary-container: var(--theme-onPrimaryContainer, #00574d);
+  --color-inverse-primary: var(--theme-inversePrimary, #006b5f);
+  --color-primary-fixed: var(--theme-primaryFixed, #62fae3);
+  --color-primary-fixed-dim: var(--theme-primaryFixedDim, #3cddc7);
+  --color-on-primary-fixed: var(--theme-onPrimaryFixed, #00201c);
+  --color-on-primary-fixed-variant: var(--theme-onPrimaryFixedVariant, #005047);
+  --color-secondary: #bfc6db;
+  --color-on-secondary: #293041;
+  --color-secondary-container: #3f4758;
+  --color-on-secondary-container: #adb5c9;
+  --color-tertiary: #ffd1aa;
+  --color-on-tertiary: #4b2800;
+  --color-tertiary-container: #ffac5a;
+  --color-on-tertiary-container: #744000;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --font-family-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Light theme override */
+[data-theme="light"] {
+  --color-surface: #f5faf7;
+  --color-surface-dim: #d9dfdb;
+  --color-surface-bright: #f5faf7;
+  --color-surface-container: #e9efeB;
+  --color-surface-container-low: #eff4f0;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e3e9e5;
+  --color-surface-container-highest: #dde4e1;
+  --color-on-surface: #181d1b;
+  --color-on-surface-variant: #444e4a;
+  --color-outline: #757f7a;
+  --color-outline-variant: #c1ccc6;
+  --color-inverse-surface: #2d3330;
+  --color-inverse-on-surface: #edf2ee;
+  --color-secondary: #56615d;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #dae5df;
+  --color-on-secondary-container: #131f1b;
+  --color-tertiary: #745b40;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #ffddb8;
+  --color-on-tertiary-container: #2a1800;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #410002;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks as expected. See https://github.com/tailwindlabs/tailwindcss/issues/13994
+*/
+*,
+::after,
+::before {
+  border-color: var(--color-gray-200, currentcolor);
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus-visible styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-primary, #57f1db);
+  outline-offset: 2px;
+}
+
+/* Hide scrollbar utility — for scrollable containers that should not show a scrollbar */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Responsive typography */
+
+/* Scrollbar styles — only apply on non-touch devices for a cleaner mobile experience */
+@media (hover: hover) {
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-outline-variant);
+    border-radius: 9999px;
+  }
+}
+
+/* Animations */
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: in 0.2s ease-out;
+}
