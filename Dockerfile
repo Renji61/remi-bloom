@@ -36,6 +36,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=deps /app/node_modules/postgres ./node_modules/postgres
 COPY --from=builder /app/src/db/migrations ./src/db/migrations
 COPY scripts/start-server.mjs ./scripts/start-server.mjs
 
@@ -45,5 +46,8 @@ EXPOSE 4131
 
 ENV PORT=4131
 ENV HOSTNAME="0.0.0.0"
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "const http=require('http');const req=http.get('http://127.0.0.1:4131',res=>process.exit(res.statusCode<500?0:1));req.on('error',()=>process.exit(1));req.setTimeout(4000,()=>{req.destroy();process.exit(1);});"
 
 CMD ["node", "scripts/start-server.mjs"]

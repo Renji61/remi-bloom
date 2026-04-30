@@ -1,11 +1,25 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import postgres from "postgres";
 import { pathToFileURL } from "node:url";
 
 const migrationsDir = join(process.cwd(), "src", "db", "migrations");
 const databaseUrl = process.env.DATABASE_URL;
+
+async function loadPostgres() {
+  try {
+    const { default: postgres } = await import("postgres");
+    return postgres;
+  } catch (error) {
+    if (error?.code === "ERR_MODULE_NOT_FOUND") {
+      throw new Error(
+        "Missing runtime dependency 'postgres'. Rebuild the image so node_modules includes 'postgres' before starting the server.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
 
 function splitMigration(sqlText) {
   return sqlText
@@ -37,6 +51,7 @@ async function runStartupMigrations() {
     return;
   }
 
+  const postgres = await loadPostgres();
   const sql = postgres(databaseUrl, { max: 1 });
 
   try {
