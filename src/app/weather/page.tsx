@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
-import { getSetting } from "@/lib/db";
+import { getUserSetting } from "@/lib/db";
 
 type WeatherCondition =
   | "Clear"
@@ -168,12 +168,16 @@ export default function WeatherPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadSettings() {
-      const prefix = currentUserId ? `${currentUserId}:` : "";
+      if (!currentUserId) {
+        setSettingsLoaded(true);
+        return;
+      }
+
       const [key, loc, lat, lon] = await Promise.all([
-        getSetting(`${prefix}weatherApiKey`),
-        getSetting(`${prefix}weatherLocation`),
-        getSetting(`${prefix}weatherLat`),
-        getSetting(`${prefix}weatherLon`),
+        getUserSetting(currentUserId, "weatherApiKey"),
+        getUserSetting(currentUserId, "weatherLocation"),
+        getUserSetting(currentUserId, "weatherLat"),
+        getUserSetting(currentUserId, "weatherLon"),
       ]);
       if (cancelled) return;
       setApiKey(key ?? null);

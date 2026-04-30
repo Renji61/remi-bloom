@@ -23,7 +23,7 @@ import {
   DialogTitle,
   Input,
 } from "@/components/ui";
-import { db } from "@/lib/db";
+import { db, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
 
@@ -167,8 +167,12 @@ export function DataSettings() {
       if (data.userSettings?.length) {
         // Re-prefix settings with current user
         for (const s of data.userSettings) {
-          const key = s.key.includes(":") ? `${currentUserId}:${s.key.split(":").slice(1).join(":")}` : s.key;
-          await db.settings.put({ key, value: s.value });
+          const key = s.key.includes(":")
+            ? s.key.split(":").slice(1).join(":")
+            : s.key;
+          if (currentUserId && key) {
+            await setUserSetting(currentUserId, key, s.value);
+          }
         }
       }
 

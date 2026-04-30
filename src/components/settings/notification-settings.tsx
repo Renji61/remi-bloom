@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui";
-import { getSetting, setSetting } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import type { NotificationEngine } from "@/lib/notification-engine";
 import type { User } from "@/lib/db";
@@ -53,8 +53,6 @@ export function NotificationSettings() {
   const [saved, setSaved] = useState(false);
   const [testResult, setTestResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const settingPrefix = currentUserId ? `${currentUserId}:` : "";
-
   useEffect(() => {
     async function load() {
       let userId = currentUserId;
@@ -74,13 +72,12 @@ export function NotificationSettings() {
         return;
       }
 
-      const prefix = `${userId}:`;
       const [engineVal, urlVal, tokenVal, weatherVal, careVal] = await Promise.all([
-        getSetting(`${prefix}notificationEngine`),
-        getSetting(`${prefix}notificationUrl`),
-        getSetting(`${prefix}notificationToken`),
-        getSetting(`${prefix}useWeatherAlerts`),
-        getSetting(`${prefix}useCareAlerts`),
+        getUserSetting(userId, "notificationEngine"),
+        getUserSetting(userId, "notificationUrl"),
+        getUserSetting(userId, "notificationToken"),
+        getUserSetting(userId, "useWeatherAlerts"),
+        getUserSetting(userId, "useCareAlerts"),
       ]);
 
       const e = (engineVal as NotificationEngine) || "disabled";
@@ -100,11 +97,11 @@ export function NotificationSettings() {
     setTestResult(null);
 
     await Promise.all([
-      setSetting(`${settingPrefix}notificationEngine`, engine),
-      setSetting(`${settingPrefix}notificationUrl`, url.trim()),
-      setSetting(`${settingPrefix}notificationToken`, token.trim()),
-      setSetting(`${settingPrefix}useWeatherAlerts`, String(weatherAlerts)),
-      setSetting(`${settingPrefix}useCareAlerts`, String(careAlerts)),
+      setUserSetting(currentUserId, "notificationEngine", engine),
+      setUserSetting(currentUserId, "notificationUrl", url.trim()),
+      setUserSetting(currentUserId, "notificationToken", token.trim()),
+      setUserSetting(currentUserId, "useWeatherAlerts", String(weatherAlerts)),
+      setUserSetting(currentUserId, "useCareAlerts", String(careAlerts)),
     ]);
 
     // Sync to zustand store

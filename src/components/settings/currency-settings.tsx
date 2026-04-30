@@ -5,7 +5,7 @@ import { DollarSign } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import { currencyOptions, currencyInfo } from "@/hooks/use-currency";
-import { getSetting, setSetting } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ const CURRENCY_SYMBOL_KEY = "currencySymbol";
 export function CurrencySettings() {
   const currencyCode = useAppStore((s) => s.currencyCode);
   const currencySymbol = useAppStore((s) => s.currencySymbol);
+  const currentUserId = useAppStore((s) => s.currentUserId);
   const setCurrencyCode = useAppStore((s) => s.setCurrencyCode);
   const setCurrencySymbol = useAppStore((s) => s.setCurrencySymbol);
 
@@ -25,23 +26,31 @@ export function CurrencySettings() {
   // Load persisted currency from IndexedDB
   useEffect(() => {
     async function load() {
-      const code = await getSetting(CURRENCY_CODE_KEY);
-      const symbol = await getSetting(CURRENCY_SYMBOL_KEY);
+      if (!currentUserId) {
+        setLoaded(true);
+        return;
+      }
+
+      const [code, symbol] = await Promise.all([
+        getUserSetting(currentUserId, CURRENCY_CODE_KEY),
+        getUserSetting(currentUserId, CURRENCY_SYMBOL_KEY),
+      ]);
       if (code) setCurrencyCode(code);
       if (symbol) setCurrencySymbol(symbol);
       setLoaded(true);
     }
     load();
-  }, [setCurrencyCode, setCurrencySymbol]);
+  }, [currentUserId, setCurrencyCode, setCurrencySymbol]);
 
   const handleSelect = async (code: string) => {
+    if (!currentUserId) return;
     setSaving(true);
     const info = currencyInfo[code];
     if (info) {
       setCurrencyCode(info.code);
       setCurrencySymbol(info.symbol);
-      await setSetting(CURRENCY_CODE_KEY, info.code);
-      await setSetting(CURRENCY_SYMBOL_KEY, info.symbol);
+      await setUserSetting(currentUserId, CURRENCY_CODE_KEY, info.code);
+      await setUserSetting(currentUserId, CURRENCY_SYMBOL_KEY, info.symbol);
     }
     setSaving(false);
     setSaved(true);

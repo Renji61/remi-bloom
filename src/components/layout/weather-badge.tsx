@@ -2,7 +2,7 @@
 
 import { Sun, Moon, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Bell } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
-import { getSetting } from "@/lib/db";
+import { getUserSetting } from "@/lib/db";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
@@ -173,12 +173,16 @@ export function WeatherFetcher() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const prefix = currentUserId ? `${currentUserId}:` : "";
+      if (!currentUserId) {
+        setReady(true);
+        return;
+      }
+
       const [key, loc, lat, lon] = await Promise.all([
-        getSetting(`${prefix}weatherApiKey`),
-        getSetting(`${prefix}weatherLocation`),
-        getSetting(`${prefix}weatherLat`),
-        getSetting(`${prefix}weatherLon`),
+        getUserSetting(currentUserId, "weatherApiKey"),
+        getUserSetting(currentUserId, "weatherLocation"),
+        getUserSetting(currentUserId, "weatherLat"),
+        getUserSetting(currentUserId, "weatherLon"),
       ]);
       if (cancelled) return;
       setApiKey(key ?? null);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/stores/app-store";
-import { getSetting } from "@/lib/db";
+import { getUserSetting } from "@/lib/db";
 import type { NotificationConfig, NotificationEngine } from "@/lib/notification-engine";
 
 /**
@@ -26,12 +26,13 @@ export function useReminderTrigger() {
   useEffect(() => {
     async function checkAndAlert() {
       try {
-        const prefix = currentUserId ? `${currentUserId}:` : "";
+        if (!currentUserId) return;
+
         const [engineVal, urlVal, tokenVal, careEnabled] = await Promise.all([
-          getSetting(`${prefix}notificationEngine`),
-          getSetting(`${prefix}notificationUrl`),
-          getSetting(`${prefix}notificationToken`),
-          getSetting(`${prefix}useCareAlerts`),
+          getUserSetting(currentUserId, "notificationEngine"),
+          getUserSetting(currentUserId, "notificationUrl"),
+          getUserSetting(currentUserId, "notificationToken"),
+          getUserSetting(currentUserId, "useCareAlerts"),
         ]);
 
         if (!careEnabled || careEnabled !== "true") return;

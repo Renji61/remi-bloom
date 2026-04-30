@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Key, Eye, EyeOff, Check, Loader2, Info } from "lucide-react";
 import { Card, CardContent, Input, Button } from "@/components/ui";
-import { getSetting, setSetting } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import type { User } from "@/lib/db";
 
@@ -47,8 +47,8 @@ export function ApiKeySettings() {
       }
 
       const [plantid, perenual] = await Promise.all([
-        getSetting(`${userId}:plantidApiKey`),
-        getSetting(`${userId}:perenualApiKey`),
+        getUserSetting(userId, "plantidApiKey"),
+        getUserSetting(userId, "perenualApiKey"),
       ]);
 
       setPlantidKey(plantid ?? "");
@@ -63,8 +63,8 @@ export function ApiKeySettings() {
     setSaving(true);
 
     await Promise.all([
-      setSetting(`${currentUserId}:plantidApiKey`, plantidKey.trim()),
-      setSetting(`${currentUserId}:perenualApiKey`, perenualKey.trim()),
+      setUserSetting(currentUserId, "plantidApiKey", plantidKey.trim()),
+      setUserSetting(currentUserId, "perenualApiKey", perenualKey.trim()),
     ]);
 
     setSaving(false);

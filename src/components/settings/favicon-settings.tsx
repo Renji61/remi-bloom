@@ -5,12 +5,13 @@ import { Image, Upload, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import { SafeImage } from "@/components/ui/safe-image";
-import { uploadImage, getImageUrl, deleteUploadedImage, getSetting, setSetting } from "@/lib/db";
+import { uploadImage, getImageUrl, deleteUploadedImage, getUserSetting, setUserSetting } from "@/lib/db";
 
 const FAVICON_KEY = "faviconUrl";
 
 export function FaviconSettings() {
   const faviconUrl = useAppStore((s) => s.faviconUrl);
+  const currentUserId = useAppStore((s) => s.currentUserId);
   const setFaviconUrl = useAppStore((s) => s.setFaviconUrl);
 
   const [uploadedImageId, setUploadedImageId] = useState<string | null>(null);
@@ -24,7 +25,12 @@ export function FaviconSettings() {
   // Load saved favicon
   useEffect(() => {
     async function load() {
-      const saved = await getSetting(FAVICON_KEY);
+      if (!currentUserId) {
+        setLoading(false);
+        return;
+      }
+
+      const saved = await getUserSetting(currentUserId, FAVICON_KEY);
       if (saved) {
         setFaviconUrl(saved);
         if (saved.startsWith("upload:")) {
@@ -37,11 +43,12 @@ export function FaviconSettings() {
       setLoading(false);
     }
     load();
-  }, [setFaviconUrl]);
+  }, [currentUserId, setFaviconUrl]);
 
   const applyFavicon = async (url: string) => {
+    if (!currentUserId) return;
     setFaviconUrl(url);
-    await setSetting(FAVICON_KEY, url);
+    await setUserSetting(currentUserId, FAVICON_KEY, url);
     updateFaviconLink(url);
   };
 
@@ -101,7 +108,9 @@ export function FaviconSettings() {
     setUploadedImageId(null);
     setUploadedImageUrl(null);
     setFaviconUrl("");
-    await setSetting(FAVICON_KEY, "");
+    if (currentUserId) {
+      await setUserSetting(currentUserId, FAVICON_KEY, "");
+    }
     updateFaviconLink("/icons/icon-192.png");
   };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/stores/app-store";
-import { getSetting } from "@/lib/db";
+import { getUserSetting } from "@/lib/db";
 import type { NotificationConfig, NotificationEngine } from "@/lib/notification-engine";
 
 /**
@@ -32,12 +32,13 @@ export function useWeatherTrigger() {
 
     (async () => {
       try {
-        const prefix = currentUserId ? `${currentUserId}:` : "";
+        if (!currentUserId) return;
+
         const [engineVal, urlVal, tokenVal, weatherEnabled] = await Promise.all([
-          getSetting(`${prefix}notificationEngine`),
-          getSetting(`${prefix}notificationUrl`),
-          getSetting(`${prefix}notificationToken`),
-          getSetting(`${prefix}useWeatherAlerts`),
+          getUserSetting(currentUserId, "notificationEngine"),
+          getUserSetting(currentUserId, "notificationUrl"),
+          getUserSetting(currentUserId, "notificationToken"),
+          getUserSetting(currentUserId, "useWeatherAlerts"),
         ]);
 
         if (!weatherEnabled || weatherEnabled !== "true") return;

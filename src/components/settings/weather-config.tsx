@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Cloud, Key, Check, Loader2, MapPin } from "lucide-react";
 import { Card, CardContent, Input, Button } from "@/components/ui";
 import { CitySearch, type CityResult } from "./city-search";
-import { getSetting, setSetting } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 
 export function WeatherConfig() {
@@ -17,14 +17,19 @@ export function WeatherConfig() {
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const settingPrefix = currentUserId ? `${currentUserId}:` : "";
-
   useEffect(() => {
     async function load() {
-      const key = await getSetting(`${settingPrefix}weatherApiKey`);
-      const loc = await getSetting(`${settingPrefix}weatherLocation`);
-      const lat = await getSetting(`${settingPrefix}weatherLat`);
-      const lon = await getSetting(`${settingPrefix}weatherLon`);
+      if (!currentUserId) {
+        setLoaded(true);
+        return;
+      }
+
+      const [key, loc, lat, lon] = await Promise.all([
+        getUserSetting(currentUserId, "weatherApiKey"),
+        getUserSetting(currentUserId, "weatherLocation"),
+        getUserSetting(currentUserId, "weatherLat"),
+        getUserSetting(currentUserId, "weatherLon"),
+      ]);
       if (key) setApiKey(key);
       if (loc) {
         setLocationInput(loc);
@@ -41,7 +46,7 @@ export function WeatherConfig() {
       setLoaded(true);
     }
     load();
-  }, [settingPrefix]);
+  }, [currentUserId]);
 
   const handleCityChange = (city: CityResult | null) => {
     setSelectedCity(city);
@@ -51,19 +56,20 @@ export function WeatherConfig() {
   };
 
   const handleSave = async () => {
+    if (!currentUserId) return;
     setSaving(true);
 
     if (selectedCity) {
-      await setSetting(`${settingPrefix}weatherLocation`, selectedCity.display);
-      await setSetting(`${settingPrefix}weatherLat`, String(selectedCity.lat));
-      await setSetting(`${settingPrefix}weatherLon`, String(selectedCity.lon));
+      await setUserSetting(currentUserId, "weatherLocation", selectedCity.display);
+      await setUserSetting(currentUserId, "weatherLat", String(selectedCity.lat));
+      await setUserSetting(currentUserId, "weatherLon", String(selectedCity.lon));
     } else {
       const fallback = locationInput.trim() || "London";
-      await setSetting(`${settingPrefix}weatherLocation`, fallback);
-      await setSetting(`${settingPrefix}weatherLat`, "");
-      await setSetting(`${settingPrefix}weatherLon`, "");
+      await setUserSetting(currentUserId, "weatherLocation", fallback);
+      await setUserSetting(currentUserId, "weatherLat", "");
+      await setUserSetting(currentUserId, "weatherLon", "");
     }
-    await setSetting(`${settingPrefix}weatherApiKey`, apiKey.trim());
+    await setUserSetting(currentUserId, "weatherApiKey", apiKey.trim());
 
     setSaving(false);
     setSaved(true);

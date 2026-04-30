@@ -19,3 +19,12 @@ online before cached pages and offline mutations are available.
 Offline mutation support covers the main user-facing entities and replays queued
 operations to `/api/sync` when the browser reports connectivity and `/api/ping`
 is healthy.
+
+## Local-Only Blobs
+
+Record metadata syncs through Postgres, but uploaded image blobs are currently
+stored only in the browser's IndexedDB. Fields such as plant, location,
+inventory, journal, and uploaded favicon images may reference `upload:<id>`
+values that only resolve on the device where the image was uploaded. Use HTTPS
+image URLs when an image needs to appear across devices until server-backed image
+storage is added.

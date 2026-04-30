@@ -564,6 +564,22 @@ export async function replaySyncQueue(userId?: string): Promise<SyncReplayResult
           .map((result: any) => result.operationId)
       );
 
+      if (process.env.NODE_ENV !== "production") {
+        for (const result of results) {
+          if (!result?.success) {
+            const operation = operations.find(
+              (item) => item.operationId === result?.operationId
+            );
+            console.warn("Sync operation failed", {
+              entity: operation?.entity,
+              action: operation?.action,
+              recordId: operation?.recordId,
+              error: result?.error,
+            });
+          }
+        }
+      }
+
       await db.transaction("rw", db.syncQueue, async () => {
         for (const operation of operations) {
           if (succeededIds.has(operation.operationId)) {
@@ -1196,7 +1212,27 @@ export async function getSharedGardensForUser(userId: string): Promise<SharedGar
  * Get a user-specific setting (key prefixed with userId for isolation).
  */
 export async function getUserSetting(userId: string, key: string): Promise<string | undefined> {
-  return getSetting(`${userId}:${key}`);
+  const localValue = await getSetting(`${userId}:${key}`);
+  if (localValue !== undefined || typeof window === "undefined") {
+    return localValue;
+  }
+
+  try {
+    const response = await fetch(`/api/settings?key=${encodeURIComponent(key)}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!response.ok) return undefined;
+    const payload = await response.json();
+    if (typeof payload.value === "string") {
+      await db.settings.put({ key: `${userId}:${key}`, value: payload.value });
+      return payload.value;
+    }
+  } catch {
+    // IndexedDB remains the offline source of truth when the API is unavailable.
+  }
+
+  return undefined;
 }
 
 export async function setUserSetting(userId: string, key: string, value: string): Promise<void> {

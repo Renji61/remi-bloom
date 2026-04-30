@@ -89,6 +89,21 @@ function hydrateStore(payload: SyncPayload) {
 
   // Notification settings
   const s = payload.settings;
+  if (s.themeMode && ["dark", "light", "system"].includes(s.themeMode)) {
+    store.setThemeMode(s.themeMode as any);
+  }
+  if (s.themeColor && ["emerald", "terracotta", "sky", "lavender", "rose"].includes(s.themeColor)) {
+    store.setThemeColor(s.themeColor as any);
+  }
+  if (s.currencyCode) {
+    store.setCurrencyCode(s.currencyCode);
+  }
+  if (s.currencySymbol) {
+    store.setCurrencySymbol(s.currencySymbol);
+  }
+  if (s.faviconUrl !== undefined) {
+    store.setFaviconUrl(s.faviconUrl);
+  }
   store.setNotificationEngine((s.notificationEngine as any) || "disabled");
   store.setNotificationEngineUrl(s.notificationUrl ?? "");
   store.setNotificationEngineToken(s.notificationToken ?? "");
@@ -114,8 +129,11 @@ export async function loadUserData(userId: string) {
       await cacheToIndexedDB(userId, payload);
 
       return;
-    } catch {
-      // Fall through to IndexedDB fallback
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("API data load failed; falling back to IndexedDB", error);
+    }
+    // Fall through to IndexedDB fallback
     }
   }
 
@@ -177,18 +195,41 @@ async function loadFromIndexedDB(userId: string, store: any) {
   store.setCareEvents(careEvents);
   if (gardenCells.length > 0) store.setGardenCells(gardenCells);
 
-  // Load notification settings from IndexedDB
+  // Load user-scoped settings from IndexedDB
   const prefix = `${userId}:`;
-  const [engineVal, urlVal, tokenVal, weatherVal, careVal] = await Promise.all(
-    [
-      getSetting(`${prefix}notificationEngine`),
-      getSetting(`${prefix}notificationUrl`),
-      getSetting(`${prefix}notificationToken`),
-      getSetting(`${prefix}useWeatherAlerts`),
-      getSetting(`${prefix}useCareAlerts`),
-    ]
-  );
+  const [
+    engineVal,
+    urlVal,
+    tokenVal,
+    weatherVal,
+    careVal,
+    themeMode,
+    themeColor,
+    currencyCode,
+    currencySymbol,
+    faviconUrl,
+  ] = await Promise.all([
+    getSetting(`${prefix}notificationEngine`),
+    getSetting(`${prefix}notificationUrl`),
+    getSetting(`${prefix}notificationToken`),
+    getSetting(`${prefix}useWeatherAlerts`),
+    getSetting(`${prefix}useCareAlerts`),
+    getSetting(`${prefix}themeMode`),
+    getSetting(`${prefix}themeColor`),
+    getSetting(`${prefix}currencyCode`),
+    getSetting(`${prefix}currencySymbol`),
+    getSetting(`${prefix}faviconUrl`),
+  ]);
 
+  if (themeMode && ["dark", "light", "system"].includes(themeMode)) {
+    store.setThemeMode(themeMode as any);
+  }
+  if (themeColor && ["emerald", "terracotta", "sky", "lavender", "rose"].includes(themeColor)) {
+    store.setThemeColor(themeColor as any);
+  }
+  if (currencyCode) store.setCurrencyCode(currencyCode);
+  if (currencySymbol) store.setCurrencySymbol(currencySymbol);
+  if (faviconUrl !== undefined) store.setFaviconUrl(faviconUrl);
   store.setNotificationEngine((engineVal as any) || "disabled");
   store.setNotificationEngineUrl(urlVal ?? "");
   store.setNotificationEngineToken(tokenVal ?? "");
@@ -220,6 +261,7 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         db.progressEntries,
         db.sharedGardens,
         db.actionItems,
+        db.settings,
       ],
       async () => {
         // Clear existing data for this user
@@ -265,7 +307,7 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         if (payload.actionItems.length > 0)
           await db.actionItems.bulkAdd(payload.actionItems);
 
-        // Cache notification settings
+        // Cache user settings
         for (const [key, value] of Object.entries(payload.settings)) {
           const dbKey = `${userId}:${key}`;
           const existing = await db.settings.get(dbKey);
@@ -277,7 +319,9 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         }
       }
     );
-  } catch {
-    // Silently fail — IndexedDB caching is best-effort
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Failed to cache API payload into IndexedDB", error);
+    }
   }
 }
