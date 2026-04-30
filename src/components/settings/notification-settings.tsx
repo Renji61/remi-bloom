@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Bell, Server, Key, Check, Loader2, Info, ExternalLink, Thermometer, CloudRain } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Server, Check, Loader2, Info } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -48,12 +48,6 @@ export function NotificationSettings() {
   const [token, setLocalToken] = useState("");
   const [weatherAlerts, setLocalWeather] = useState(false);
   const [careAlerts, setLocalCare] = useState(false);
-  const [tempAboveEnabled, setLocalTempAbove] = useState(false);
-  const [tempAboveValue, setLocalTempAboveValue] = useState("");
-  const [tempBelowEnabled, setLocalTempBelow] = useState(false);
-  const [tempBelowValue, setLocalTempBelowValue] = useState("");
-  const [rainEnabled, setLocalRain] = useState(false);
-  const [rainWindowHours, setLocalRainWindow] = useState("24");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -93,25 +87,6 @@ export function NotificationSettings() {
       setLocalWeather(weatherVal === "true");
       setLocalCare(careVal === "true");
 
-      // Load forecast alert rule settings
-      const [
-        tempAboveE, tempAboveV, tempBelowE, tempBelowV,
-        rainE, rainW,
-      ] = await Promise.all([
-        getUserSetting(userId, "weatherAlertTempAboveEnabled"),
-        getUserSetting(userId, "weatherAlertTempAboveValue"),
-        getUserSetting(userId, "weatherAlertTempBelowEnabled"),
-        getUserSetting(userId, "weatherAlertTempBelowValue"),
-        getUserSetting(userId, "weatherAlertRainEnabled"),
-        getUserSetting(userId, "weatherAlertRainWindowHours"),
-      ]);
-      setLocalTempAbove(tempAboveE === "true");
-      setLocalTempAboveValue(tempAboveV ?? "");
-      setLocalTempBelow(tempBelowE === "true");
-      setLocalTempBelowValue(tempBelowV ?? "");
-      setLocalRain(rainE === "true");
-      setLocalRainWindow(rainW ?? "24");
-
       setLoaded(true);
     }
     load();
@@ -128,12 +103,6 @@ export function NotificationSettings() {
       setUserSetting(currentUserId, "notificationToken", token.trim()),
       setUserSetting(currentUserId, "useWeatherAlerts", String(weatherAlerts)),
       setUserSetting(currentUserId, "useCareAlerts", String(careAlerts)),
-      setUserSetting(currentUserId, "weatherAlertTempAboveEnabled", String(tempAboveEnabled)),
-      setUserSetting(currentUserId, "weatherAlertTempAboveValue", String(tempAboveValue)),
-      setUserSetting(currentUserId, "weatherAlertTempBelowEnabled", String(tempBelowEnabled)),
-      setUserSetting(currentUserId, "weatherAlertTempBelowValue", String(tempBelowValue)),
-      setUserSetting(currentUserId, "weatherAlertRainEnabled", String(rainEnabled)),
-      setUserSetting(currentUserId, "weatherAlertRainWindowHours", String(rainWindowHours)),
     ]);
 
     // Sync to zustand store
@@ -319,91 +288,6 @@ export function NotificationSettings() {
                 </div>
               </label>
             </div>
-
-            {/* Forecast Alert Rules */}
-            {weatherAlerts && (
-              <div className="space-y-3 pt-1 border-t border-outline-variant/30">
-                <div className="flex items-center gap-2 pt-1">
-                  <Thermometer size={14} className="text-[var(--theme-primary)]/60" />
-                  <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
-                    Forecast Alert Rules
-                  </p>
-                </div>
-
-                {/* Temperature Above */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={tempAboveEnabled}
-                    onChange={(e) => setLocalTempAbove(e.target.checked)}
-                    className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-on-surface">Temperature above</span>
-                  </div>
-                </label>
-                {tempAboveEnabled && (
-                  <div className="pl-7">
-                    <Input
-                      label="Threshold (°C)"
-                      type="number"
-                      value={tempAboveValue}
-                      onChange={(e) => setLocalTempAboveValue(e.target.value)}
-                      placeholder="e.g. 35"
-                    />
-                  </div>
-                )}
-
-                {/* Temperature Below */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={tempBelowEnabled}
-                    onChange={(e) => setLocalTempBelow(e.target.checked)}
-                    className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-on-surface">Temperature below</span>
-                  </div>
-                </label>
-                {tempBelowEnabled && (
-                  <div className="pl-7">
-                    <Input
-                      label="Threshold (°C)"
-                      type="number"
-                      value={tempBelowValue}
-                      onChange={(e) => setLocalTempBelowValue(e.target.value)}
-                      placeholder="e.g. 0"
-                    />
-                  </div>
-                )}
-
-                {/* Rain Alert */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rainEnabled}
-                    onChange={(e) => setLocalRain(e.target.checked)}
-                    className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-on-surface">Rain alert</span>
-                  </div>
-                </label>
-                {rainEnabled && (
-                  <div className="pl-7">
-                    <Input
-                      label="Forecast window (hours)"
-                      type="number"
-                      min={1}
-                      value={rainWindowHours}
-                      onChange={(e) => setLocalRainWindow(e.target.value)}
-                      placeholder="24"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Test Button */}
             <Button

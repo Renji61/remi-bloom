@@ -188,18 +188,18 @@ export default function NotificationsPage() {
           ? <Sparkles {...props} className="text-[var(--theme-primary)]" />
           : <User {...props} className="text-on-surface-variant" />;
       case "reminder":
-        return <Bell {...props} className="text-amber-400" />;
+        return <Bell {...props} className="text-amber-500" />;
       case "todo":
-        return <Clock {...props} className="text-blue-400" />;
+        return <Clock {...props} className="text-blue-500" />;
     }
   };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "water": return "text-blue-400";
-      case "fertilize": return "text-emerald-400";
-      case "prune": return "text-purple-400";
-      case "repot": return "text-amber-400";
+      case "water": return "text-blue-500";
+      case "fertilize": return "text-emerald-500";
+      case "prune": return "text-purple-500";
+      case "repot": return "text-amber-500";
       default: return "text-on-surface-variant";
     }
   };
@@ -207,10 +207,10 @@ export default function NotificationsPage() {
   const getCategoryIcon = (category: string) => {
     const props = { size: 12 };
     switch (category) {
-      case "water": return <Droplets {...props} className="text-blue-400" />;
-      case "fertilize": return <FlaskConical {...props} className="text-emerald-400" />;
-      case "prune": return <Scissors {...props} className="text-purple-400" />;
-      case "repot": return <RefreshCw {...props} className="text-amber-400" />;
+      case "water": return <Droplets {...props} className="text-blue-500" />;
+      case "fertilize": return <FlaskConical {...props} className="text-emerald-500" />;
+      case "prune": return <Scissors {...props} className="text-purple-500" />;
+      case "repot": return <RefreshCw {...props} className="text-amber-500" />;
       default: return <Bell {...props} className="text-on-surface-variant" />;
     }
   };

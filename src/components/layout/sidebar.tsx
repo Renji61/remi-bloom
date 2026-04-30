@@ -154,7 +154,7 @@ export function Sidebar() {
           )}
         </Link>
         {!collapsed && (
-          <p className="px-2 text-[9px] text-on-surface-variant/30">
+          <p className="px-2 text-[9px] text-on-surface-variant/50">
             REMI Bloom v1.0.0
           </p>
         )}

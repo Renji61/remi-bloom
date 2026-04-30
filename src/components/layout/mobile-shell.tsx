@@ -28,19 +28,19 @@ import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/app-store";
 
 const PAGE_ICONS_MOBILE: Record<string, { icon: any; color: string }> = {
-  "/home": { icon: Sprout, color: "text-emerald-400" },
-  "/calendar": { icon: CalendarDays, color: "text-sky-400" },
-  "/journal": { icon: BookOpen, color: "text-amber-400" },
-  "/locations": { icon: MapPin, color: "text-rose-400" },
-  "/tags": { icon: Tags, color: "text-fuchsia-400" },
-  "/inventory": { icon: Package, color: "text-violet-400" },
-  "/settings": { icon: Settings, color: "text-slate-400" },
-  "/profile": { icon: User, color: "text-indigo-400" },
-  "/planner": { icon: LayoutGrid, color: "text-teal-400" },
-  "/identify": { icon: Scan, color: "text-cyan-400" },
-  "/weather": { icon: Sun, color: "text-yellow-400" },
-  "/share": { icon: Users, color: "text-blue-400" },
-  "/admin": { icon: Shield, color: "text-purple-400" },
+  "/home": { icon: Sprout, color: "text-emerald-500" },
+  "/calendar": { icon: CalendarDays, color: "text-sky-500" },
+  "/journal": { icon: BookOpen, color: "text-amber-500" },
+  "/locations": { icon: MapPin, color: "text-rose-500" },
+  "/tags": { icon: Tags, color: "text-fuchsia-500" },
+  "/inventory": { icon: Package, color: "text-violet-500" },
+  "/settings": { icon: Settings, color: "text-slate-500" },
+  "/profile": { icon: User, color: "text-indigo-500" },
+  "/planner": { icon: LayoutGrid, color: "text-teal-500" },
+  "/identify": { icon: Scan, color: "text-cyan-500" },
+  "/weather": { icon: Sun, color: "text-yellow-500" },
+  "/share": { icon: Users, color: "text-blue-500" },
+  "/admin": { icon: Shield, color: "text-purple-500" },
 };
 
 const mainNavItems = [

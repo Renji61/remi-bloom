@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
-import { getUserSetting } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 
 type WeatherCondition =
   | "Clear"
@@ -63,17 +63,17 @@ function getWeatherIcon(main: WeatherCondition, size = 24): React.ReactNode {
   const props = { size, className: "text-on-surface-variant" };
   switch (main) {
     case "Clear":
-      return <Sun {...props} className="text-amber-400" size={size} />;
+      return <Sun {...props} className="text-amber-500" size={size} />;
     case "Clouds":
       return <Cloud {...props} className="text-on-surface-variant" size={size} />;
     case "Rain":
-      return <CloudRain {...props} className="text-blue-400" size={size} />;
+      return <CloudRain {...props} className="text-blue-500" size={size} />;
     case "Snow":
-      return <CloudSnow {...props} className="text-sky-200" size={size} />;
+      return <CloudSnow {...props} className="text-sky-500" size={size} />;
     case "Thunderstorm":
-      return <CloudLightning {...props} className="text-purple-400" size={size} />;
+      return <CloudLightning {...props} className="text-purple-500" size={size} />;
     case "Drizzle":
-      return <CloudDrizzle {...props} className="text-blue-300" size={size} />;
+      return <CloudDrizzle {...props} className="text-blue-500" size={size} />;
     case "Atmosphere":
       return <Cloud {...props} className="text-on-surface-variant/60" size={size} />;
     default:
@@ -122,6 +122,14 @@ export default function WeatherPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Forecast alert rule settings
+  const [tempAboveEnabled, setLocalTempAbove] = useState(false);
+  const [tempAboveValue, setLocalTempAboveValue] = useState("");
+  const [tempBelowEnabled, setLocalTempBelow] = useState(false);
+  const [tempBelowValue, setLocalTempBelowValue] = useState("");
+  const [rainEnabled, setLocalRain] = useState(false);
+  const [rainWindowHours, setLocalRainWindow] = useState("24");
 
   // Compute a hash of the current location to detect changes
   const currentLocationHash = useMemo(
@@ -184,6 +192,27 @@ export default function WeatherPage() {
       setLocation(loc ?? "auto:detect");
       setWeatherLat(lat ?? null);
       setWeatherLon(lon ?? null);
+
+      // Load forecast alert rule settings
+      const [
+        tempAboveE, tempAboveV, tempBelowE, tempBelowV,
+        rainE, rainW,
+      ] = await Promise.all([
+        getUserSetting(currentUserId, "weatherAlertTempAboveEnabled"),
+        getUserSetting(currentUserId, "weatherAlertTempAboveValue"),
+        getUserSetting(currentUserId, "weatherAlertTempBelowEnabled"),
+        getUserSetting(currentUserId, "weatherAlertTempBelowValue"),
+        getUserSetting(currentUserId, "weatherAlertRainEnabled"),
+        getUserSetting(currentUserId, "weatherAlertRainWindowHours"),
+      ]);
+      if (cancelled) return;
+      setLocalTempAbove(tempAboveE === "true");
+      setLocalTempAboveValue(tempAboveV ?? "");
+      setLocalTempBelow(tempBelowE === "true");
+      setLocalTempBelowValue(tempBelowV ?? "");
+      setLocalRain(rainE === "true");
+      setLocalRainWindow(rainW ?? "24");
+
       setSettingsLoaded(true);
     }
     loadSettings();
@@ -228,7 +257,7 @@ export default function WeatherPage() {
 
       {!settingsLoaded ? (
         <div className="flex items-center justify-center py-16">
-          <RefreshCw size={24} className="animate-spin text-on-surface-variant/40" />
+          <RefreshCw size={24} className="animate-spin text-on-surface-variant/50" />
         </div>
       ) : !apiKey ? (
         /* No API Key state */
@@ -254,7 +283,7 @@ export default function WeatherPage() {
       ) : loading && !weatherData ? (
         /* Initial loading state */
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <RefreshCw size={32} className="mb-3 animate-spin text-on-surface-variant/30" />
+          <RefreshCw size={32} className="mb-3 animate-spin text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">Fetching weather data...</p>
         </div>
       ) : error ? (
@@ -310,7 +339,7 @@ export default function WeatherPage() {
                     </p>
                   </div>
                   <div className="rounded-2xl bg-surface-container/60 p-3 text-center">
-                    <Droplets size={16} className="mx-auto text-blue-400/60" />
+                    <Droplets size={16} className="mx-auto text-blue-500/60" />
                     <p className="mt-1 text-[10px] text-on-surface-variant/60">Humidity</p>
                     <p className="text-sm font-semibold tabular-nums text-on-surface">
                       {currentWeather.main.humidity}%
@@ -328,19 +357,19 @@ export default function WeatherPage() {
                 {/* Min / Max */}
                 <div className="mt-3 flex items-center justify-center gap-4 rounded-2xl bg-surface-container/40 p-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-blue-400">↓</span>
+                    <span className="text-[10px] text-blue-500">↓</span>
                     <span className="text-xs tabular-nums text-on-surface-variant">
                       {formatTemp(currentWeather.main.temp_min)}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-white/5" />
+                  <div className="h-4 w-px bg-outline/10" />
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-amber-400">↑</span>
+                    <span className="text-[10px] text-amber-500">↑</span>
                     <span className="text-xs tabular-nums text-on-surface-variant">
                       {formatTemp(currentWeather.main.temp_max)}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-white/5" />
+                  <div className="h-4 w-px bg-outline/10" />
                   <div className="text-[10px] text-on-surface-variant/50">
                     {currentWeather.main.temp > currentWeather.main.feels_like
                       ? "Feels cooler"
@@ -389,11 +418,126 @@ export default function WeatherPage() {
             </div>
           </div>
         </div>
+
+        {/* Forecast Alert Rules Card */}
+        <Card>
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Thermometer size={16} className="text-[var(--theme-primary)]/60" />
+              <h3 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                Forecast Alert Rules
+              </h3>
+            </div>
+
+            {/* Temperature Above */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={tempAboveEnabled}
+                onChange={(e) => {
+                  setLocalTempAbove(e.target.checked);
+                  if (currentUserId) {
+                    setUserSetting(currentUserId, "weatherAlertTempAboveEnabled", String(e.target.checked));
+                  }
+                }}
+                className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
+              />
+              <div className="flex-1">
+                <span className="text-sm text-on-surface">Temperature above</span>
+              </div>
+            </label>
+            {tempAboveEnabled && (
+              <div className="pl-7">
+                <Input
+                  label="Threshold (°C)"
+                  type="number"
+                  value={tempAboveValue}
+                  onChange={(e) => {
+                    setLocalTempAboveValue(e.target.value);
+                    if (currentUserId) {
+                      setUserSetting(currentUserId, "weatherAlertTempAboveValue", e.target.value);
+                    }
+                  }}
+                  placeholder="e.g. 35"
+                />
+              </div>
+            )}
+
+            {/* Temperature Below */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={tempBelowEnabled}
+                onChange={(e) => {
+                  setLocalTempBelow(e.target.checked);
+                  if (currentUserId) {
+                    setUserSetting(currentUserId, "weatherAlertTempBelowEnabled", String(e.target.checked));
+                  }
+                }}
+                className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
+              />
+              <div className="flex-1">
+                <span className="text-sm text-on-surface">Temperature below</span>
+              </div>
+            </label>
+            {tempBelowEnabled && (
+              <div className="pl-7">
+                <Input
+                  label="Threshold (°C)"
+                  type="number"
+                  value={tempBelowValue}
+                  onChange={(e) => {
+                    setLocalTempBelowValue(e.target.value);
+                    if (currentUserId) {
+                      setUserSetting(currentUserId, "weatherAlertTempBelowValue", e.target.value);
+                    }
+                  }}
+                  placeholder="e.g. 0"
+                />
+              </div>
+            )}
+
+            {/* Rain Alert */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rainEnabled}
+                onChange={(e) => {
+                  setLocalRain(e.target.checked);
+                  if (currentUserId) {
+                    setUserSetting(currentUserId, "weatherAlertRainEnabled", String(e.target.checked));
+                  }
+                }}
+                className="h-4 w-4 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
+              />
+              <div className="flex-1">
+                <span className="text-sm text-on-surface">Rain alert</span>
+              </div>
+            </label>
+            {rainEnabled && (
+              <div className="pl-7">
+                <Input
+                  label="Forecast window (hours)"
+                  type="number"
+                  min={1}
+                  value={rainWindowHours}
+                  onChange={(e) => {
+                    setLocalRainWindow(e.target.value);
+                    if (currentUserId) {
+                      setUserSetting(currentUserId, "weatherAlertRainWindowHours", e.target.value);
+                    }
+                  }}
+                  placeholder="24"
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
         </>
       ) : (
         /* Empty state — should not normally happen when apiKey is set */
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Cloud size={40} className="mb-3 text-on-surface-variant/30" />
+          <Cloud size={40} className="mb-3 text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">No weather data</p>
           <Button className="mt-4" size="sm" onClick={() => fetchWeather()}>
             <RefreshCw size={14} />

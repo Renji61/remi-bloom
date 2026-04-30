@@ -412,7 +412,7 @@ export default function InventoryPage() {
                               </span>
                             )}
                             {(item.price ?? 0) > 0 && (
-                              <span className="text-[11px] font-semibold tabular-nums text-emerald-400">
+                              <span className="text-[11px] font-semibold tabular-nums text-emerald-500">
                                 {formatPrice(item.price) || `$${(item.price ?? 0).toFixed(2)}`}
                               </span>
                             )}
@@ -618,7 +618,7 @@ export default function InventoryPage() {
                   <button
                     type="button"
                     onClick={removeUploadedImage}
-                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
+                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
                   >
                     <X size={10} />
                   </button>

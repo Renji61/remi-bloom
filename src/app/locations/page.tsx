@@ -298,57 +298,55 @@ export default function LocationsPage() {
       <div className="flex items-center gap-2">
         <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
           <button
-            onClick={() => { setSortKey("name"); setSortDirection("asc"); }}
+            onClick={() => {
+              if (sortKey !== "name") {
+                setSortKey("name");
+                setSortDirection("asc");
+              } else {
+                setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+              }
+            }}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "name" && sortDirection === "asc"
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1",
+              sortKey === "name"
                 ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            A→Z
+            Name
+            <span className="text-[9px]">
+              {sortKey === "name" ? (sortDirection === "asc" ? "A→Z" : "Z→A") : ""}
+            </span>
           </button>
           <button
-            onClick={() => { setSortKey("name"); setSortDirection("desc"); }}
+            onClick={() => {
+              if (sortKey !== "createdAt") {
+                setSortKey("createdAt");
+                setSortDirection("desc");
+              } else {
+                setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+              }
+            }}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "name" && sortDirection === "desc"
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1",
+              sortKey === "createdAt"
                 ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            Z→A
-          </button>
-          <button
-            onClick={() => { setSortKey("createdAt"); setSortDirection("desc"); }}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "createdAt" && sortDirection === "desc"
-                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
-                : "text-on-surface-variant/60 hover:text-on-surface"
-            )}
-          >
-            Newest
-          </button>
-          <button
-            onClick={() => { setSortKey("createdAt"); setSortDirection("asc"); }}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "createdAt" && sortDirection === "asc"
-                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
-                : "text-on-surface-variant/60 hover:text-on-surface"
-            )}
-          >
-            Oldest
+            Date
+            <span className="text-[9px]">
+              {sortKey === "createdAt" ? (sortDirection === "desc" ? "↓" : "↑") : ""}
+            </span>
           </button>
         </div>
-        <ArrowUpDown size={12} className="text-on-surface-variant/40" />
+        <ArrowUpDown size={12} className="text-on-surface-variant/50" />
       </div>
 
       {/* Location Grid */}
       {locations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <MapPin size={40} className="mb-3 text-on-surface-variant/30" />
+          <MapPin size={40} className="mb-3 text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">
             No locations yet
           </p>
@@ -531,7 +529,7 @@ export default function LocationsPage() {
                     </>
                   )}
                 </button>
-                <span className="text-[10px] text-on-surface-variant/40">
+                <span className="text-[10px] text-on-surface-variant/50">
                   JPEG, PNG, GIF, WebP, AVIF, BMP, TIFF (max 10MB)
                 </span>
               </div>
@@ -552,7 +550,7 @@ export default function LocationsPage() {
                   <button
                     type="button"
                     onClick={removeUploadedImage}
-                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
+                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
                   >
                     <X size={10} />
                   </button>

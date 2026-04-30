@@ -121,22 +121,30 @@ export function PlantCard({
           {/* Tags */}
           {plantTags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {plantTags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium"
-                  style={{
-                    backgroundColor: tag.color + "20",
-                    color: tag.color,
-                  }}
-                >
+              {plantTags.map((tag) => {
+                const hex = tag.color.replace("#", "");
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                const textColor = brightness > 128 ? "rgba(0,0,0,0.7)" : "#fff";
+                return (
                   <span
-                    className="h-1 w-1 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
-                  {tag.name}
-                </span>
-              ))}
+                    key={tag.id}
+                    className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium"
+                    style={{
+                      backgroundColor: tag.color + "30",
+                      color: textColor,
+                    }}
+                  >
+                    <span
+                      className="h-1 w-1 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </span>
+                );
+              })}
             </div>
           )}
 
@@ -161,7 +169,7 @@ export function PlantCard({
                 e.stopPropagation();
                 onQuickWater();
               }}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-500/10 px-2 py-1.5 text-[10px] font-semibold text-blue-400 transition-colors hover:bg-blue-500/20"
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-500/10 px-2 py-1.5 text-[10px] font-semibold text-blue-500 transition-colors hover:bg-blue-500/20"
             >
               <Droplets size={12} />
               Water
@@ -171,7 +179,7 @@ export function PlantCard({
                 e.stopPropagation();
                 onQuickFertilize();
               }}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold text-emerald-500 transition-colors hover:bg-emerald-500/20"
             >
               <FlaskConical size={12} />
               Fertilize

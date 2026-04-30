@@ -32,6 +32,7 @@ export default function CalendarPage() {
   const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => today.toISOString().split("T")[0], [today]);
   const [viewDate, setViewDate] = useState(today);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingAction, setEditingAction] = useState<ActionItem | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "completed">("all");
@@ -40,6 +41,11 @@ export default function CalendarPage() {
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
+
+  const selectedDateStr = useMemo(() => {
+    if (selectedDay === null) return null;
+    return new Date(year, month, selectedDay).toISOString().split("T")[0];
+  }, [selectedDay, year, month]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -63,9 +69,9 @@ export default function CalendarPage() {
     return d === c.getDate() && month === c.getMonth() && year === c.getFullYear();
   };
 
-  const goToday = () => setViewDate(today);
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const goToday = () => { setViewDate(today); setSelectedDay(null); };
+  const prevMonth = () => { setViewDate(new Date(year, month - 1, 1)); setSelectedDay(null); };
+  const nextMonth = () => { setViewDate(new Date(year, month + 1, 1)); setSelectedDay(null); };
 
   const getActionsForDay = useCallback(
     (day: number) => {
@@ -77,6 +83,10 @@ export default function CalendarPage() {
 
   const filteredActions = useMemo(() => {
     let items = actionItems;
+    // Filter by selected day if one is chosen
+    if (selectedDateStr) {
+      items = items.filter((a) => a.date?.startsWith(selectedDateStr));
+    }
     if (filterStatus === "pending") items = items.filter((a) => !a.completed);
     else if (filterStatus === "completed") items = items.filter((a) => a.completed);
     if (filterType !== "all") items = items.filter((a) => a.type === filterType);
@@ -87,7 +97,7 @@ export default function CalendarPage() {
     });
     sorted.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0));
     return sorted;
-  }, [actionItems, filterStatus, filterType]);
+  }, [actionItems, filterStatus, filterType, selectedDateStr]);
 
   const actionTypes = useMemo(
     () => [...new Set(actionItems.map((a) => a.type).filter(Boolean))] as string[],
@@ -258,16 +268,24 @@ export default function CalendarPage() {
                   <button
                     key={`d-${day}`}
                     onClick={() => {
+                      setSelectedDay(selectedDay === day ? null : day);
+                    }}
+                    onDoubleClick={() => {
                       const ds = new Date(year, month, day).toISOString().split("T")[0];
                       openAddForm(ds);
                     }}
                     className={cn(
                       "relative flex flex-col items-center justify-center rounded-lg p-1.5 min-h-[48px] text-xs transition-colors",
                       "hover:bg-surface-container-high/60",
-                      isToday(day) && "ring-1 ring-[var(--theme-primary)]/30 bg-[var(--theme-primary)]/5"
+                      isToday(day) && !(selectedDay === day) && "ring-1 ring-[var(--theme-primary)]/30 bg-[var(--theme-primary)]/5",
+                      selectedDay === day && "ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/10"
                     )}
                   >
-                    <span className={cn("font-medium", isToday(day) && "text-[var(--theme-primary)]")}>
+                    <span className={cn(
+                      "font-medium",
+                      isToday(day) && "text-[var(--theme-primary)]",
+                      selectedDay === day && "text-[var(--theme-primary)]"
+                    )}>
                       {day}
                     </span>
                     {hasActions && (
@@ -291,10 +309,23 @@ export default function CalendarPage() {
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-on-surface">Actions</h2>
-              <Button onClick={() => openAddForm()} size="sm">
-                <Plus size={14} className="mr-1" /> Add
-              </Button>
+              <h2 className="text-sm font-bold text-on-surface">
+                {selectedDateStr ? (
+                  <span>Actions — {new Date(selectedDateStr + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                ) : (
+                  "Actions"
+                )}
+              </h2>
+              <div className="flex items-center gap-1">
+                {selectedDateStr && (
+                  <Button onClick={() => setSelectedDay(null)} size="sm" variant="ghost" className="text-xs">
+                    <X size={12} className="mr-0.5" /> Show all
+                  </Button>
+                )}
+                <Button onClick={() => openAddForm(selectedDateStr ?? undefined)} size="sm">
+                  <Plus size={14} className="mr-1" /> Add
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-2 flex-wrap">
@@ -726,7 +757,7 @@ export default function CalendarPage() {
                               className={cn(
                                 "px-1 py-1 rounded text-[10px] font-medium transition-colors",
                                 dormant
-                                  ? "bg-red-500/15 text-red-400"
+                                  ? "bg-red-500/15 text-red-500"
                                   : "bg-surface-container-high/40 text-on-surface-variant/60 hover:text-on-surface"
                               )}
                             >

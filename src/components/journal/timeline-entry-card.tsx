@@ -42,9 +42,9 @@ export function TimelineEntryCard({
   const headerIcon = isJournal ? (
     <BookOpen size={12} className="shrink-0 text-[var(--theme-primary)]" />
   ) : (
-    <TrendingUp size={12} className="shrink-0 text-emerald-400" />
+    <TrendingUp size={12} className="shrink-0 text-emerald-500" />
   );
-  const headerColor = isJournal ? "text-[var(--theme-primary)]" : "text-emerald-400";
+  const headerColor = isJournal ? "text-[var(--theme-primary)]" : "text-emerald-500";
 
   return (
     <motion.div
@@ -75,7 +75,7 @@ export function TimelineEntryCard({
             <div className="mb-2 flex flex-wrap gap-3">
               {growthEntry.height > 0 && (
                 <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                  <Ruler size={12} className="text-emerald-400/70" />
+                  <Ruler size={12} className="text-emerald-500/70" />
                   <span>
                     {growthEntry.height}
                     {growthEntry.heightUnit === "cm" ? " cm" : " in"}
@@ -84,13 +84,13 @@ export function TimelineEntryCard({
               )}
               {growthEntry.leafCount > 0 && (
                 <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                  <Leaf size={12} className="text-emerald-400/70" />
+                  <Leaf size={12} className="text-emerald-500/70" />
                   <span>{growthEntry.leafCount} leaves</span>
                 </div>
               )}
               {growthEntry.harvestYield && (
                 <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                  <Apple size={12} className="text-amber-400/70" />
+                  <Apple size={12} className="text-amber-500/70" />
                   <span>{growthEntry.harvestYield}</span>
                 </div>
               )}

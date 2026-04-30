@@ -176,57 +176,55 @@ export default function TagsPage() {
       <div className="flex items-center gap-2">
         <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
           <button
-            onClick={() => { setSortKey("createdAt"); setSortDirection("desc"); }}
+            onClick={() => {
+              if (sortKey !== "createdAt") {
+                setSortKey("createdAt");
+                setSortDirection("desc");
+              } else {
+                setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+              }
+            }}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "createdAt" && sortDirection === "desc"
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1",
+              sortKey === "createdAt"
                 ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            Newest
+            Date
+            <span className="text-[9px]">
+              {sortKey === "createdAt" ? (sortDirection === "desc" ? "↓" : "↑") : ""}
+            </span>
           </button>
           <button
-            onClick={() => { setSortKey("name"); setSortDirection("asc"); }}
+            onClick={() => {
+              if (sortKey !== "name") {
+                setSortKey("name");
+                setSortDirection("asc");
+              } else {
+                setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+              }
+            }}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "name" && sortDirection === "asc"
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1",
+              sortKey === "name"
                 ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            A→Z
-          </button>
-          <button
-            onClick={() => { setSortKey("name"); setSortDirection("desc"); }}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "name" && sortDirection === "desc"
-                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
-                : "text-on-surface-variant/60 hover:text-on-surface"
-            )}
-          >
-            Z→A
-          </button>
-          <button
-            onClick={() => { setSortKey("createdAt"); setSortDirection("asc"); }}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
-              sortKey === "createdAt" && sortDirection === "asc"
-                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
-                : "text-on-surface-variant/60 hover:text-on-surface"
-            )}
-          >
-            Oldest
+            Name
+            <span className="text-[9px]">
+              {sortKey === "name" ? (sortDirection === "asc" ? "A→Z" : "Z→A") : ""}
+            </span>
           </button>
         </div>
-        <ArrowUpDown size={12} className="text-on-surface-variant/40" />
+        <ArrowUpDown size={12} className="text-on-surface-variant/50" />
       </div>
 
       {/* Tag Grid */}
       {tags.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Tags size={40} className="mb-3 text-on-surface-variant/30" />
+          <Tags size={40} className="mb-3 text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">
             No tags yet
           </p>
@@ -310,24 +308,37 @@ export default function TagsPage() {
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                 Color
               </label>
-              <div className="flex flex-wrap gap-2">
-                {tagColors.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-                      color === c
-                        ? "ring-2 ring-white/60 scale-110"
-                        : "hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: c }}
-                    aria-label={`Color ${c}`}
-                  >
-                    {color === c && (
-                      <span className="text-[10px] text-white drop-shadow">✓</span>
-                    )}
-                  </button>
-                ))}
+                  <div className="flex flex-wrap gap-2">
+                {tagColors.map((c) => {
+                  // Determine brightness for checkmark contrast
+                  const hex = c.replace("#", "");
+                  const r = parseInt(hex.substring(0, 2), 16);
+                  const g = parseInt(hex.substring(2, 4), 16);
+                  const b = parseInt(hex.substring(4, 6), 16);
+                  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                  const isLight = brightness > 128;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+                        color === c
+                          ? "ring-2 ring-white/60 scale-110"
+                          : "hover:scale-105"
+                      }`}
+                      style={{ backgroundColor: c }}
+                      aria-label={`Color ${c}`}
+                    >
+                      {color === c && (
+                        <span
+                          className={`text-[10px] drop-shadow ${
+                            isLight ? "text-black/70" : "text-white"
+                          }`}
+                        >✓</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

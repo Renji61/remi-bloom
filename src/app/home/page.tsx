@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   List,
   Sparkles,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Input,
@@ -50,6 +51,7 @@ import {
   deleteUploadedImage,
   addActionItem,
 } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 import { generateId, formatDateShort, formatDate } from "@/lib/utils";
 import nextDynamic from "next/dynamic";
 import { PWAInstallPrompt } from "@/components/layout/pwa-install-prompt";
@@ -97,6 +99,33 @@ export default function HomePage() {
   const [needsCareFilter, setNeedsCareFilter] = useState(false);
   const [openDetail, setOpenDetail] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Plant sort state
+  const [plantSortKey, setPlantSortKey] = useState<"createdAt" | "name">("createdAt");
+  const [plantSortDirection, setPlantSortDirection] = useState<"asc" | "desc">("desc");
+  const [plantSortLoaded, setPlantSortLoaded] = useState(false);
+
+  // Load saved sort preferences
+  useEffect(() => {
+    async function loadSort() {
+      if (!currentUserId) return;
+      const [key, dir] = await Promise.all([
+        getUserSetting(currentUserId, "homeSortKey"),
+        getUserSetting(currentUserId, "homeSortDirection"),
+      ]);
+      if (key === "createdAt" || key === "name") setPlantSortKey(key);
+      if (dir === "asc" || dir === "desc") setPlantSortDirection(dir);
+      setPlantSortLoaded(true);
+    }
+    loadSort();
+  }, [currentUserId]);
+
+  // Save sort preferences when they change
+  useEffect(() => {
+    if (!currentUserId || !plantSortLoaded) return;
+    setUserSetting(currentUserId, "homeSortKey", plantSortKey);
+    setUserSetting(currentUserId, "homeSortDirection", plantSortDirection);
+  }, [plantSortKey, plantSortDirection, currentUserId, plantSortLoaded]);
 
   // Plant form state
   const [showPlantForm, setShowPlantForm] = useState(false);
@@ -209,8 +238,21 @@ export default function HomePage() {
         return daysSince > 3;
       });
     }
+    // Sort
+    list = [...list].sort((a, b) => {
+      let cmp: number;
+      if (plantSortKey === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else {
+        cmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+      }
+      if (cmp === 0) {
+        cmp = a.name.localeCompare(b.name);
+      }
+      return plantSortDirection === "asc" ? cmp : -cmp;
+    });
     return list;
-  }, [plants, debouncedSearch, locationFilter, tagFilter, needsCareFilter, lastCareByPlant]);
+  }, [plants, debouncedSearch, locationFilter, tagFilter, needsCareFilter, lastCareByPlant, plantSortKey, plantSortDirection]);
 
   const logQuickCare = useCallback(
     async (plantId: string, type: "water" | "fertilize") => {
@@ -497,12 +539,54 @@ export default function HomePage() {
             aria-pressed={needsCareFilter}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
               needsCareFilter
-                ? "bg-amber-500/20 text-amber-400"
+                ? "bg-amber-500/20 text-amber-500"
                 : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
             Needs Care
           </button>
+          <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
+            <button
+              onClick={() => {
+                if (plantSortKey !== "createdAt") {
+                  setPlantSortKey("createdAt");
+                  setPlantSortDirection("desc");
+                } else {
+                  setPlantSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+                }
+              }}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                plantSortKey === "createdAt"
+                  ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                  : "text-on-surface-variant/60 hover:text-on-surface"
+              }`}
+            >
+              Date
+              <span className="text-[9px]">
+                {plantSortKey === "createdAt" ? (plantSortDirection === "desc" ? "↓" : "↑") : ""}
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                if (plantSortKey !== "name") {
+                  setPlantSortKey("name");
+                  setPlantSortDirection("asc");
+                } else {
+                  setPlantSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+                }
+              }}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                plantSortKey === "name"
+                  ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                  : "text-on-surface-variant/60 hover:text-on-surface"
+              }`}
+            >
+              Name
+              <span className="text-[9px]">
+                {plantSortKey === "name" ? (plantSortDirection === "asc" ? "A→Z" : "Z→A") : ""}
+              </span>
+            </button>
+          </div>
           <button
             onClick={() =>
               setLocationFilter(
@@ -526,7 +610,7 @@ export default function HomePage() {
             aria-pressed={!!tagFilter}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
               tagFilter
-                ? "bg-purple-500/20 text-purple-400"
+                ? "bg-purple-500/20 text-purple-500"
                 : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
@@ -600,7 +684,7 @@ export default function HomePage() {
       {/* Plant Grid / List */}
       {filteredPlants.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center" role="alert" aria-live="polite">
-          <Sprout size={40} className="mb-3 text-on-surface-variant/30" />
+          <Sprout size={40} className="mb-3 text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">
             No plants found
           </p>
@@ -852,7 +936,7 @@ export default function HomePage() {
                         </>
                       )}
                     </button>
-                    <span className="text-[9px] text-on-surface-variant/40">
+                    <span className="text-[9px] text-on-surface-variant/50">
                       JPEG, PNG, GIF, WebP, AVIF, BMP, TIFF (max 10MB)
                     </span>
                   </div>
@@ -873,7 +957,7 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={removePlantUploadedImage}
-                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
                       >
                         <X size={8} />
                       </button>
@@ -1047,22 +1131,30 @@ function PlantDetail({
         {/* Tags */}
         {tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{
-                  backgroundColor: tag.color + "20",
-                  color: tag.color,
-                }}
-              >
+            {tags.map((tag) => {
+              const hex = tag.color.replace("#", "");
+              const r = parseInt(hex.substring(0, 2), 16);
+              const g = parseInt(hex.substring(2, 4), 16);
+              const b = parseInt(hex.substring(4, 6), 16);
+              const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+              const textColor = brightness > 128 ? "rgba(0,0,0,0.7)" : "#fff";
+              return (
                 <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: tag.color }}
-                />
-                {tag.name}
-              </span>
-            ))}
+                  key={tag.id}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{
+                    backgroundColor: tag.color + "30",
+                    color: textColor,
+                  }}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  {tag.name}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1129,13 +1221,13 @@ function CareIcon({ type }: { type: CareEvent["type"] }) {
   const props = { size: 14 };
   switch (type) {
     case "water":
-      return <Droplets {...props} className="shrink-0 text-blue-400" />;
+      return <Droplets {...props} className="shrink-0 text-blue-500" />;
     case "fertilize":
-      return <FlaskConical {...props} className="shrink-0 text-emerald-400" />;
+      return <FlaskConical {...props} className="shrink-0 text-emerald-500" />;
     case "repot":
-      return <RotateCcw {...props} className="shrink-0 text-amber-400" />;
+      return <RotateCcw {...props} className="shrink-0 text-amber-500" />;
     case "prune":
-      return <Scissors {...props} className="shrink-0 text-purple-400" />;
+      return <Scissors {...props} className="shrink-0 text-purple-500" />;
     default:
       return <Sprout {...props} className="shrink-0 text-on-surface-variant" />;
   }

@@ -664,7 +664,7 @@ export default function JournalPage() {
                   <button
                     type="button"
                     onClick={removePlantUploadedImage}
-                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
+                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
                   >
                     <X size={10} />
                   </button>
