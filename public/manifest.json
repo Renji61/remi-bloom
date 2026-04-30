@@ -2,7 +2,7 @@
   "name": "REMI Bloom",
   "short_name": "Bloom",
   "description": "Plant management and garden planning app",
-  "start_url": "/greenhouse",
+  "start_url": "/home",
   "display": "standalone",
   "background_color": "#0e1513",
   "theme_color": "#1a211f",
@@ -22,6 +22,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/narrow.png",
+      "sizes": "1080x2340",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "REMI Bloom home screen on mobile"
+    },
+    {
+      "src": "/screenshots/wide.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "REMI Bloom dashboard on desktop"
     }
   ]
 }
