@@ -2,13 +2,15 @@ import type { Plant, PlantLocation, CareEvent, Tag, InventoryItem } from "@/lib/
 
 export const mockLocations = [
   { id: "loc-1", name: "Living Room", description: "Bright indirect light near the east window", emoji: "🛋️", imageUrl: "", createdAt: "2025-01-01" },
-  { id: "loc-2", name: "Kitchen Windowsill", description: "Warm and sunny south-facing windowsill", emoji: "🍳", imageUrl: "", createdAt: "2025-01-01" },
+  { id: "loc-2", name: "Kitchen", description: "Warm and sunny south-facing windowsill", emoji: "🍳", imageUrl: "", createdAt: "2025-01-01" },
   { id: "loc-3", name: "Balcony", description: "Outdoor with partial shade", emoji: "🌤️", imageUrl: "", createdAt: "2025-01-01" },
   { id: "loc-4", name: "Bedroom", description: "Low-light corner near the bed", emoji: "🛏️", imageUrl: "", createdAt: "2025-01-01" },
   { id: "loc-5", name: "Bathroom", description: "Humid environment with north-facing window", emoji: "🚿", imageUrl: "", createdAt: "2025-01-01" },
-  { id: "loc-6", name: "Home Office", description: "Desk plant with grow light", emoji: "💼", imageUrl: "", createdAt: "2025-01-01" },
+  { id: "loc-6", name: "Office", description: "Desk plant with grow light", emoji: "💼", imageUrl: "", createdAt: "2025-01-01" },
   { id: "loc-7", name: "Entrance Hall", description: "Drafty area with low foot traffic", emoji: "🚪", imageUrl: "", createdAt: "2025-01-01" },
-  { id: "loc-8", name: "Greenhouse Shed", description: "Controlled environment with full-spectrum light", emoji: "🏡", imageUrl: "", createdAt: "2025-01-01" },
+  { id: "loc-8", name: "Greenhouse", description: "Controlled environment with full-spectrum light", emoji: "🏡", imageUrl: "", createdAt: "2025-01-01" },
+  { id: "loc-9", name: "Garden", description: "Outdoor garden beds and planters", emoji: "🌿", imageUrl: "", createdAt: "2025-01-01" },
+  { id: "loc-10", name: "Terrace", description: "Open rooftop or patio area", emoji: "☀️", imageUrl: "", createdAt: "2025-01-01" },
 ] satisfies Omit<PlantLocation, "userId">[];
 
 export const mockTags = [
@@ -22,6 +24,8 @@ export const mockTags = [
   { id: "tag-8", name: "Succulent", color: "#fb923c", createdAt: "2025-01-01" },
   { id: "tag-9", name: "Flowering", color: "#f472b6", createdAt: "2025-01-01" },
   { id: "tag-10", name: "Tropical", color: "#2dd4bf", createdAt: "2025-01-01" },
+  { id: "tag-11", name: "Indoor", color: "#a3e635", createdAt: "2025-01-01" },
+  { id: "tag-12", name: "Outdoor", color: "#84cc16", createdAt: "2025-01-01" },
 ] satisfies Omit<Tag, "userId">[];
 
 export const mockPlants = [

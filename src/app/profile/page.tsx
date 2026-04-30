@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { User, LogOut, Save, Loader2, Check, Key, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, Button, Input } from "@/components/ui";
@@ -31,12 +31,16 @@ export default function ProfilePage() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
 
+  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState("");
@@ -57,12 +61,39 @@ export default function ProfilePage() {
         return;
       }
       setCurrentUser(user);
+      setUsername(user.username);
       setDisplayName(user.displayName);
       setEmail(user.email);
       setLoaded(true);
     }
     init();
   }, [currentUser, setCurrentUser, router]);
+
+  // Debounced username uniqueness check
+  const checkUsernameAvailability = (value: string) => {
+    if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current);
+    if (!value.trim() || value.trim() === currentUser?.username) {
+      setUsernameError(null);
+      return;
+    }
+    usernameCheckTimer.current = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const res = await fetch(`/api/profile/check-username?username=${encodeURIComponent(value.trim())}`);
+        const data = await res.json();
+        if (!data.available) {
+          setUsernameError(`Username "@${value.trim()}" is already taken. Please choose another one.`);
+        } else {
+          setUsernameError(null);
+        }
+      } catch {
+        // Silently fail – the save handler will catch duplicates
+        setUsernameError(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+  };
 
   const handleSaveProfile = async () => {
     if (!currentUser) return;
@@ -73,6 +104,7 @@ export default function ProfilePage() {
       const updated = await apiFetch<AppUser>("/api/profile", {
         method: "PATCH",
         body: JSON.stringify({
+          username: username.trim(),
           displayName: displayName.trim(),
           email: email.trim(),
         }),
@@ -81,7 +113,11 @@ export default function ProfilePage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error: any) {
-      setProfileError(error.message ?? "Failed to update profile");
+      if (error.message?.includes("already exists") || error.message?.includes("already taken")) {
+        setUsernameError("This username is already taken. Please choose another one.");
+      } else {
+        setProfileError(error.message ?? "Failed to update profile");
+      }
     } finally {
       setSaving(false);
     }
@@ -198,6 +234,38 @@ export default function ProfilePage() {
               <User size={18} className="text-sky-400" />
             </div>
             <h2 className="text-sm font-semibold text-on-surface">Edit Profile</h2>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+              Username
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant/60 font-semibold">
+                @
+              </span>
+              <input
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setProfileError(null);
+                  checkUsernameAvailability(e.target.value);
+                }}
+                placeholder="username"
+                autoComplete="username"
+                className={`w-full rounded-2xl border pl-8 pr-4 py-3 text-sm text-on-surface bg-surface-container/60 backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 ${
+                  usernameError
+                    ? "border-red-400/50 focus:border-red-400/50 focus:ring-red-400/20"
+                    : "border-outline/30 focus:border-[var(--theme-primary)]/50 focus:ring-[var(--theme-primary)]/20"
+                }`}
+              />
+            </div>
+            {checkingUsername && (
+              <p className="mt-1 text-[11px] text-on-surface-variant/50">Checking availability...</p>
+            )}
+            {usernameError && (
+              <p className="mt-1 text-[11px] text-red-400">{usernameError}</p>
+            )}
           </div>
 
           <Input

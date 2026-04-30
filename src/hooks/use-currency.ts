@@ -46,13 +46,14 @@ export function useFormatPrice() {
 
     return (price: number): string => {
       if (price <= 0) return "";
+      if (!code) return `$${price.toFixed(2)}`;
       try {
         return price.toLocaleString(locale, {
           style: "currency",
           currency: code,
         });
       } catch {
-        return `${currencySymbol}${price.toFixed(2)}`;
+        return `${currencySymbol || "$"}${price.toFixed(2)}`;
       }
     };
   }, [currencyCode, currencySymbol]);

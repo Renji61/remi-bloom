@@ -38,8 +38,9 @@ export function PlantListView({
   index = 0,
 }: PlantListViewProps) {
   const tags = useAppStore((s) => s.tags);
+  const dateForAge = plant.plantedDate || plant.createdAt;
   const daysSinceCreated = Math.floor(
-    (Date.now() - new Date(plant.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - new Date(dateForAge).getTime()) / (1000 * 60 * 60 * 24)
   );
 
   const plantTags = tags.filter((t) => plant.tags?.includes(t.id));

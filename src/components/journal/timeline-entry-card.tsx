@@ -116,7 +116,7 @@ export function TimelineEntryCard({
             <SafeImage
               src={photoUrl}
               alt={isJournal ? "Journal photo" : "Growth log photo"}
-              className="mt-3 max-h-64 w-full rounded-xl object-cover"
+              className="mt-3 max-h-32 w-full max-w-[160px] rounded-xl object-cover"
             />
           )}
         </CardContent>

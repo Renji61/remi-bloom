@@ -94,6 +94,7 @@ export default function CalendarPage() {
   const resetForm = () => {
     setEditingAction(null);
     setShowForm(false);
+    setSaveError(null);
   };
 
   const openAddForm = (date = todayIso) => {
@@ -118,6 +119,7 @@ export default function CalendarPage() {
   const [formTime, setFormTime] = useState("");
   const [formNote, setFormNote] = useState("");
   const [formPlantId, setFormPlantId] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingAction) {
@@ -132,32 +134,38 @@ export default function CalendarPage() {
 
   const saveAction = async () => {
     if (!formTitle.trim()) return;
-    const action: ActionItem = {
-      id: editingAction?.id || generateId(),
-      userId: editingAction?.userId || currentUserId || "",
-      title: formTitle.trim(),
-      source: editingAction?.source || ("manual" as const),
-      type: formType as ActionItem["type"],
-      date: formDate,
-      time: formTime,
-      completed: editingAction?.completed || false,
-      plantIds: formPlantId ? [formPlantId] : [],
-      plantNames: formPlantId
-        ? [plants.find((p) => p.id === formPlantId)?.name || ""]
-        : [],
-      note: formNote,
-      repeat: editingAction?.repeat || ("none" as const),
-      repeatConfig: editingAction?.repeatConfig ?? { type: "none" } as import("@/lib/db").RepeatConfig,
-      snoozedUntil: editingAction?.snoozedUntil || null,
-      category: editingAction?.category || (formType as ActionItem["category"]),
-      createdAt: editingAction?.createdAt || new Date().toISOString(),
-    };
-    if (editingAction) {
-      await updateActionItem(action);
-    } else {
-      await addActionItem(action);
+    setSaveError(null);
+    try {
+      const action: ActionItem = {
+        id: editingAction?.id || generateId(),
+        userId: editingAction?.userId || currentUserId || "",
+        title: formTitle.trim(),
+        source: editingAction?.source || ("manual" as const),
+        type: formType as ActionItem["type"],
+        date: formDate,
+        time: formTime,
+        completed: editingAction?.completed || false,
+        plantIds: formPlantId ? [formPlantId] : [],
+        plantNames: formPlantId
+          ? [plants.find((p) => p.id === formPlantId)?.name || ""]
+          : [],
+        note: formNote,
+        repeat: editingAction?.repeat || ("none" as const),
+        repeatConfig: editingAction?.repeatConfig ?? { type: "none" } as import("@/lib/db").RepeatConfig,
+        snoozedUntil: editingAction?.snoozedUntil || null,
+        category: editingAction?.category || (formType as ActionItem["category"]),
+        createdAt: editingAction?.createdAt || new Date().toISOString(),
+      };
+      if (editingAction) {
+        await updateActionItem(action);
+      } else {
+        await addActionItem(action);
+      }
+      resetForm();
+    } catch (error) {
+      console.error("Failed to save action:", error);
+      setSaveError("An unexpected error occurred. Please try again.");
     }
-    resetForm();
   };
 
   const handleDelete = async (id: string) => {
@@ -216,7 +224,7 @@ export default function CalendarPage() {
                       openAddForm(ds);
                     }}
                     className={cn(
-                      "relative flex flex-col items-center justify-start rounded-lg p-1.5 min-h-[48px] text-xs transition-colors",
+                      "relative flex flex-col items-center justify-center rounded-lg p-1.5 min-h-[48px] text-xs transition-colors",
                       "hover:bg-surface-container-high/60",
                       isToday(day) && "ring-1 ring-[var(--theme-primary)]/30 bg-[var(--theme-primary)]/5"
                     )}
@@ -225,7 +233,7 @@ export default function CalendarPage() {
                       {day}
                     </span>
                     {hasActions && (
-                      <div className="flex gap-0.5 mt-0.5">
+                      <div className="flex gap-0.5 absolute bottom-1">
                         {allDone ? (
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         ) : overdue ? (
@@ -418,6 +426,11 @@ export default function CalendarPage() {
                 className="w-full rounded-2xl border border-outline/30 bg-surface-container/60 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 backdrop-blur-sm transition-all duration-200 focus:border-[var(--theme-primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]/20 resize-none"
               />
             </div>
+            {saveError && (
+              <div className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                Something went wrong. {saveError}
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button onClick={resetForm} size="sm" variant="ghost">Cancel</Button>
               <Button onClick={saveAction} size="sm" disabled={!formTitle.trim()}>

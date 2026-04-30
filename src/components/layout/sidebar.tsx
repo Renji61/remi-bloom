@@ -29,7 +29,6 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/planner", label: "Garden", icon: LayoutGrid },
   { href: "/notifications", label: "Notifications", icon: Bell },
-  { href: "/identify", label: "Identify Plants", icon: Scan },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/locations", label: "Locations", icon: MapPin },
   { href: "/inventory", label: "Inventory", icon: Package },

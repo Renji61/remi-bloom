@@ -19,6 +19,7 @@ import {
   Sparkles,
   User,
   Shield,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusIndicators } from "./status-indicators";
@@ -26,9 +27,25 @@ import { WeatherBadge, HeaderThemeToggle, NotificationsBadge } from "./weather-b
 import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/app-store";
 
+const PAGE_ICONS_MOBILE: Record<string, { icon: any; color: string }> = {
+  "/home": { icon: Sprout, color: "text-emerald-400" },
+  "/calendar": { icon: CalendarDays, color: "text-sky-400" },
+  "/journal": { icon: BookOpen, color: "text-amber-400" },
+  "/locations": { icon: MapPin, color: "text-rose-400" },
+  "/inventory": { icon: Package, color: "text-violet-400" },
+  "/settings": { icon: Settings, color: "text-slate-400" },
+  "/profile": { icon: User, color: "text-indigo-400" },
+  "/planner": { icon: LayoutGrid, color: "text-teal-400" },
+  "/notifications": { icon: Bell, color: "text-pink-400" },
+  "/identify": { icon: Scan, color: "text-cyan-400" },
+  "/weather": { icon: Sun, color: "text-yellow-400" },
+  "/share": { icon: Users, color: "text-blue-400" },
+  "/admin": { icon: Shield, color: "text-purple-400" },
+};
+
 const mainNavItems = [
   { href: "/home", label: "Home", icon: Sprout },
-  { href: "/calendar", label: "Cal", icon: Calendar },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/planner", label: "Garden", icon: LayoutGrid },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -39,7 +56,6 @@ const subNavItems = [
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/weather", label: "Weather", icon: Sun },
   { href: "/share", label: "Share", icon: Users },
-  { href: "/identify", label: "Identify", icon: Scan },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/journal", label: "Journal", icon: BookOpen },
 ];
@@ -47,6 +63,8 @@ const subNavItems = [
 export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const currentUser = useAppStore((s) => s.currentUser);
+  const mobilePageIcon = PAGE_ICONS_MOBILE[pathname] ?? { icon: Sprout, color: "text-[var(--theme-primary)]" };
+  const MobileIconComponent = mobilePageIcon.icon;
   const isAdmin = currentUser?.role === "admin";
 
   return (
@@ -58,7 +76,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-outline-variant/40 bg-surface/80 px-5 py-3 backdrop-blur-lg" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}>
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--theme-primary)]/20">
-            <Sprout size={16} className="text-[var(--theme-primary)]" />
+            <MobileIconComponent size={16} className={mobilePageIcon.color} />
           </div>
           <span className="text-sm font-bold tracking-wide text-[var(--theme-primary)]">
             REMI Bloom

@@ -8,6 +8,7 @@ import { compare, hash } from "bcryptjs";
 import { generateId } from "@/lib/utils";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_-]{3,32}$/;
 const MIN_PASSWORD_LENGTH = 4;
 
 export async function GET() {
@@ -55,6 +56,28 @@ export async function PATCH(request: NextRequest) {
     }
     updateData.displayName = displayName;
     auditActions.push("profile_update");
+  }
+
+  if (body.username !== undefined) {
+    const username = String(body.username).trim().toLowerCase();
+    if (!USERNAME_REGEX.test(username)) {
+      return NextResponse.json(
+        { error: "Username must be 3-32 characters and contain only letters, numbers, underscores, or hyphens" },
+        { status: 400 }
+      );
+    }
+    if (username !== existingUser.username) {
+      const duplicate = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .then((rows) => rows[0]);
+      if (duplicate) {
+        return NextResponse.json({ error: "Username already exists" }, { status: 409 });
+      }
+      updateData.username = username;
+      auditActions.push("profile_update");
+    }
   }
 
   if (body.email !== undefined) {

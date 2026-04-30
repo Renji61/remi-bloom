@@ -3,11 +3,30 @@
 import { Sidebar } from "./sidebar";
 import { StatusIndicators } from "./status-indicators";
 import { WeatherBadge, HeaderThemeToggle, NotificationsBadge } from "./weather-badge";
-import { Sprout, User } from "lucide-react";
+import {
+  Sprout, User, CalendarDays, BookOpen, MapPin, Package,
+  Settings, Scan, Bell, Sun, LayoutGrid, Users, Shield,
+} from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/stores/app-store";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+
+const PAGE_ICONS: Record<string, { icon: any; color: string }> = {
+  "/home": { icon: Sprout, color: "text-emerald-400" },
+  "/calendar": { icon: CalendarDays, color: "text-sky-400" },
+  "/journal": { icon: BookOpen, color: "text-amber-400" },
+  "/locations": { icon: MapPin, color: "text-rose-400" },
+  "/inventory": { icon: Package, color: "text-violet-400" },
+  "/settings": { icon: Settings, color: "text-slate-400" },
+  "/profile": { icon: User, color: "text-indigo-400" },
+  "/planner": { icon: LayoutGrid, color: "text-teal-400" },
+  "/notifications": { icon: Bell, color: "text-pink-400" },
+  "/identify": { icon: Scan, color: "text-cyan-400" },
+  "/weather": { icon: Sun, color: "text-yellow-400" },
+  "/share": { icon: Users, color: "text-blue-400" },
+  "/admin": { icon: Shield, color: "text-purple-400" },
+};
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/home": { title: "My Greenhouse", subtitle: "Manage your plant collection" },
@@ -30,6 +49,8 @@ export function DesktopShell({ children }: { children: React.ReactNode }) {
   const currentUser = useAppStore((s) => s.currentUser);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const pageInfo = PAGE_TITLES[pathname] ?? { title: "REMI Bloom", subtitle: "" };
+  const pageIcon = PAGE_ICONS[pathname] ?? { icon: Sprout, color: "text-[var(--theme-primary)]" };
+  const IconComponent = pageIcon.icon;
 
   return (
     <div className="flex min-h-dvh bg-surface">
@@ -43,7 +64,7 @@ export function DesktopShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-outline-variant/40 bg-surface/80 px-6 py-3 backdrop-blur-lg">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--theme-primary)]/20">
-              <Sprout size={18} className="text-[var(--theme-primary)]" />
+              <IconComponent size={18} className={pageIcon.color} />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-on-surface leading-tight">

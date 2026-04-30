@@ -527,7 +527,7 @@ function UserRow({
   const [showMenu, setShowMenu] = useState(false);
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardContent className="p-3">
         <div className="flex items-center gap-3">
           {/* Avatar */}
@@ -588,6 +588,25 @@ function UserRow({
             <p className="mt-0.5 text-[10px] text-on-surface-variant/30">
               Created: {formatDate(new Date(user.createdAt))}
             </p>
+          </div>
+
+          <div className="hidden shrink-0 items-center gap-1 sm:flex">
+            <button
+              onClick={onToggleActive}
+              className="inline-flex items-center gap-1 rounded-lg bg-surface-container-high px-2 py-1.5 text-[10px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-higher hover:text-on-surface"
+            >
+              {user.active ? <UserX size={12} /> : <UserCheck size={12} />}
+              {user.active ? "Deactivate" : "Activate"}
+            </button>
+            {!isSelf && (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center gap-1 rounded-lg bg-red-500/10 px-2 py-1.5 text-[10px] font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+              >
+                <Trash2 size={12} />
+                Delete
+              </button>
+            )}
           </div>
 
           {/* Actions */}

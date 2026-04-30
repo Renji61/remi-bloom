@@ -469,12 +469,14 @@ export default function HomePage() {
               {filteredPlants.length} of {plants.length} plants
             </p>
           </div>
-          <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
-          <Button onClick={openAddForm} size="sm" className="shrink-0">
-            <Plus size={14} />
-            <span className="hidden sm:inline">Add Plant</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
+            <Button onClick={openAddForm} size="sm" className="shrink-0">
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add Plant</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+          </div>
         </div>
 
         {/* Filter row – scrollable on mobile */}

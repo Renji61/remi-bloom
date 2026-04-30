@@ -79,9 +79,13 @@ export default function JournalPage() {
     return m;
   }, [plants]);
 
+  // Filter & sort state
+  const [entryFilter, setEntryFilter] = useState<"all" | "journal" | "growth">("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+
   // Combined sorted entries
   const combinedEntries = useMemo(() => {
-    const combined: CombinedEntry[] = [
+    let combined: CombinedEntry[] = [
       ...journalEntries.map((e) => ({
         id: e.id,
         type: "journal" as EntryType,
@@ -105,9 +109,15 @@ export default function JournalPage() {
         harvestYield: e.harvestYield,
       })),
     ];
-    combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (entryFilter !== "all") {
+      combined = combined.filter((e) => e.type === entryFilter);
+    }
+    combined.sort((a, b) => {
+      const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      return sortOrder === "newest" ? diff : -diff;
+    });
     return combined;
-  }, [journalEntries, progressEntries]);
+  }, [journalEntries, progressEntries, entryFilter, sortOrder]);
 
   // Dialog state
   const [open, setOpen] = useState(false);
@@ -371,6 +381,25 @@ export default function JournalPage() {
             New Entry
           </Button>
         </div>
+      </div>
+
+      {/* Filter & Sort */}
+      <div className="flex items-center gap-2">
+        <select
+          value={entryFilter}
+          onChange={(e) => setEntryFilter(e.target.value as "all" | "journal" | "growth")}
+          className="text-[10px] bg-surface-container-high/40 rounded-lg px-2.5 py-1.5 text-on-surface-variant border-0 outline-none font-medium"
+        >
+          <option value="all">All Entries</option>
+          <option value="journal">Journal</option>
+          <option value="growth">Growth Log</option>
+        </select>
+        <button
+          onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+          className="inline-flex items-center gap-1 rounded-lg bg-surface-container-high/40 px-2.5 py-1.5 text-[10px] font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+        >
+          {sortOrder === "newest" ? "↓ Newest" : "↑ Oldest"}
+        </button>
       </div>
 
       {/* Combined Timeline */}
