@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Check, CalendarDays, Plus, Pencil, Trash2,
-  ChevronLeft, ChevronRight, X,
+  ChevronLeft, ChevronRight, X, Repeat,
 } from "lucide-react";
 import {
   Button, Card, CardContent,
@@ -15,9 +15,12 @@ import { useAppStore } from "@/stores/app-store";
 import { addActionItem, updateActionItem, deleteActionItem } from "@/lib/db";
 import { generateId, cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { computeNextDate, getRepeatLabel } from "@/lib/repeat-utils";
 
 type ActionItem = import("@/lib/db").ActionItem;
 type Plant = import("@/lib/db").Plant;
+type ActionRepeat = import("@/lib/db").ActionRepeat;
+type RepeatConfig = import("@/lib/db").RepeatConfig;
 
 export default function CalendarPage() {
   usePageTitle("Calendar");
@@ -106,6 +109,8 @@ export default function CalendarPage() {
     setFormTime("");
     setFormNote("");
     setFormPlantId("none");
+    setFormRepeat("none");
+    setFormRepeatConfig({});
     setShowForm(true);
   };
 
@@ -123,6 +128,26 @@ export default function CalendarPage() {
   const [formPlantId, setFormPlantId] = useState("none");
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Repeat scheduling state
+  const [formRepeat, setFormRepeat] = useState<ActionRepeat>("none");
+  const [formRepeatConfig, setFormRepeatConfig] = useState<RepeatConfig>({});
+
+  // Helper to merge partial RepeatConfig updates
+  const updateRepeatConfig = useCallback((patch: Partial<RepeatConfig>) => {
+    setFormRepeatConfig((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const nextDuePreview = useMemo(() => {
+    if (formRepeat === "none" || !formDate) return null;
+    if (formRepeat === "dynamic") {
+      const days = formRepeatConfig.intervalDays ?? 1;
+      return `Next: ${days} day${days !== 1 ? "s" : ""} after completion`;
+    }
+    const nextDate = computeNextDate(formRepeat, formRepeatConfig, formDate);
+    if (!nextDate) return null;
+    return `Next: ${new Date(nextDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+  }, [formRepeat, formRepeatConfig, formDate]);
+
   useEffect(() => {
     if (editingAction) {
       setFormTitle(editingAction.title);
@@ -131,6 +156,8 @@ export default function CalendarPage() {
       setFormTime(editingAction.time || "");
       setFormNote(editingAction.note || "");
       setFormPlantId((editingAction.plantIds?.[0]) || "none");
+      setFormRepeat(editingAction.repeat || "none");
+      setFormRepeatConfig(editingAction.repeatConfig || {});
     }
   }, [editingAction]);
 
@@ -160,8 +187,8 @@ export default function CalendarPage() {
           ? [plants.find((p) => p.id === formPlantId)?.name || ""]
           : [],
         note: formNote,
-        repeat: editingAction?.repeat || ("none" as const),
-        repeatConfig: editingAction?.repeatConfig ?? { type: "none" } as import("@/lib/db").RepeatConfig,
+        repeat: formRepeat,
+        repeatConfig: formRepeatConfig,
         snoozedUntil: editingAction?.snoozedUntil || null,
         category: editingAction?.category || (formType as ActionItem["category"]),
         createdAt: editingAction?.createdAt || new Date().toISOString(),
@@ -341,6 +368,12 @@ export default function CalendarPage() {
                           {action.type}
                         </span>
                       )}
+                      {action.repeat && action.repeat !== "none" && (
+                        <span className="px-1 py-0.5 rounded bg-surface-container-high/40 text-[10px] flex items-center gap-0.5">
+                          <Repeat size={8} />
+                          {getRepeatLabel(action.repeat, action.repeatConfig || {})}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -437,6 +470,285 @@ export default function CalendarPage() {
                 className="w-full rounded-2xl border border-outline/30 bg-surface-container/60 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 backdrop-blur-sm transition-all duration-200 focus:border-[var(--theme-primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]/20 resize-none"
               />
             </div>
+
+            {/* Repeat Scheduling */}
+            <div className="space-y-3 pt-1 border-t border-outline-variant/30">
+              <div className="flex items-center gap-2 pt-1">
+                <Repeat size={14} className="text-[var(--theme-primary)]/60" />
+                <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                  Repeat
+                </span>
+              </div>
+
+              <Select value={formRepeat} onValueChange={(v) => {
+                setFormRepeat(v as ActionRepeat);
+                setFormRepeatConfig({});
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Never" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Never</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="dynamic">Dynamic (after completion)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Daily: every X days */}
+              {formRepeat === "daily" && (
+                <Input
+                  label="Every X day(s)"
+                  type="number"
+                  min={1}
+                  value={String(formRepeatConfig.intervalDays ?? 1)}
+                  onChange={(e) => updateRepeatConfig({ intervalDays: Math.max(1, parseInt(e.target.value) || 1) })}
+                  placeholder="1"
+                />
+              )}
+
+              {/* Weekly */}
+              {formRepeat === "weekly" && (
+                <div className="space-y-2">
+                  <Input
+                    label="Every X week(s)"
+                    type="number"
+                    min={1}
+                    value={String(formRepeatConfig.intervalWeeks ?? 1)}
+                    onChange={(e) => updateRepeatConfig({ intervalWeeks: Math.max(1, parseInt(e.target.value) || 1) })}
+                    placeholder="1"
+                  />
+                  <div>
+                    <label className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-1.5 block">
+                      Repeat on
+                    </label>
+                    <div className="flex gap-1">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name, idx) => {
+                        const selected = formRepeatConfig.weekdays?.includes(idx) ?? false;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              const current = formRepeatConfig.weekdays ?? [];
+                              const next = selected
+                                ? current.filter((d) => d !== idx)
+                                : [...current, idx].sort();
+                              updateRepeatConfig({ weekdays: next.length > 0 ? next : undefined });
+                            }}
+                            className={cn(
+                              "w-8 h-8 rounded-lg text-[10px] font-semibold transition-colors",
+                              selected
+                                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                                : "bg-surface-container-high/40 text-on-surface-variant/60 hover:text-on-surface"
+                            )}
+                          >
+                            {name[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly */}
+              {formRepeat === "monthly" && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateRepeatConfig({ monthlyMode: "dayOfMonth" })}
+                      className={cn(
+                        "flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors",
+                        (formRepeatConfig.monthlyMode ?? "dayOfMonth") === "dayOfMonth"
+                          ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                          : "bg-surface-container-high/40 text-on-surface-variant/60 hover:text-on-surface"
+                      )}
+                    >
+                      Day of month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateRepeatConfig({ monthlyMode: "nthWeekday" })}
+                      className={cn(
+                        "flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors",
+                        formRepeatConfig.monthlyMode === "nthWeekday"
+                          ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                          : "bg-surface-container-high/40 text-on-surface-variant/60 hover:text-on-surface"
+                      )}
+                    >
+                      Nth weekday
+                    </button>
+                  </div>
+
+                  {(formRepeatConfig.monthlyMode ?? "dayOfMonth") === "dayOfMonth" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        label="Day of month"
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={String(formRepeatConfig.dayOfMonth ?? 1)}
+                        onChange={(e) => updateRepeatConfig({ dayOfMonth: Math.max(1, Math.min(31, parseInt(e.target.value) || 1)) })}
+                        placeholder="1"
+                      />
+                      <Input
+                        label="Every X month(s)"
+                        type="number"
+                        min={1}
+                        value={String(formRepeatConfig.intervalMonths ?? 1)}
+                        onChange={(e) => updateRepeatConfig({ intervalMonths: Math.max(1, parseInt(e.target.value) || 1) })}
+                        placeholder="1"
+                      />
+                    </div>
+                  )}
+
+                  {formRepeatConfig.monthlyMode === "nthWeekday" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-1.5 block">
+                          Ordinal
+                        </label>
+                        <Select
+                          value={String(formRepeatConfig.nth ?? 0)}
+                          onValueChange={(v) => updateRepeatConfig({ nth: v === "last" ? "last" : parseInt(v) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">First</SelectItem>
+                            <SelectItem value="1">Second</SelectItem>
+                            <SelectItem value="2">Third</SelectItem>
+                            <SelectItem value="3">Fourth</SelectItem>
+                            <SelectItem value="last">Last</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-1.5 block">
+                          Weekday
+                        </label>
+                        <Select
+                          value={String(formRepeatConfig.weekday ?? 0)}
+                          onValueChange={(v) => updateRepeatConfig({ weekday: parseInt(v) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Sunday</SelectItem>
+                            <SelectItem value="1">Monday</SelectItem>
+                            <SelectItem value="2">Tuesday</SelectItem>
+                            <SelectItem value="3">Wednesday</SelectItem>
+                            <SelectItem value="4">Thursday</SelectItem>
+                            <SelectItem value="5">Friday</SelectItem>
+                            <SelectItem value="6">Saturday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Yearly */}
+              {formRepeat === "yearly" && (
+                <Input
+                  label="Every X year(s)"
+                  type="number"
+                  min={1}
+                  value={String(formRepeatConfig.intervalYears ?? 1)}
+                  onChange={(e) => updateRepeatConfig({ intervalYears: Math.max(1, parseInt(e.target.value) || 1) })}
+                  placeholder="1"
+                />
+              )}
+
+              {/* Dynamic */}
+              {formRepeat === "dynamic" && (
+                <Input
+                  label="Repeat X days after completion"
+                  type="number"
+                  min={1}
+                  value={String(formRepeatConfig.intervalDays ?? 1)}
+                  onChange={(e) => updateRepeatConfig({ intervalDays: Math.max(1, parseInt(e.target.value) || 1), dynamicAfterCompletion: true })}
+                  placeholder="1"
+                />
+              )}
+
+              {/* Active Months toggle */}
+              {formRepeat !== "none" && (
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!(formRepeatConfig.activeMonths || formRepeatConfig.dormantMonths)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateRepeatConfig({ dormantMonths: [] });
+                        } else {
+                          updateRepeatConfig({ activeMonths: undefined, dormantMonths: undefined });
+                        }
+                      }}
+                      className="h-3.5 w-3.5 rounded border-outline/30 bg-surface-container/60 text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]/30"
+                    />
+                    <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                      Only repeat in specific months
+                    </span>
+                  </label>
+
+                  {!!(formRepeatConfig.activeMonths || formRepeatConfig.dormantMonths) && (
+                    <div>
+                      <label className="text-[10px] font-medium text-on-surface-variant/70 block mb-1">
+                        Skip these months
+                      </label>
+                      <p className="text-[10px] text-on-surface-variant/50 mb-2">
+                        If the next due date falls in a skipped month, it will advance to the next available month.
+                      </p>
+                      <div className="grid grid-cols-4 gap-1">
+                        {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((name, idx) => {
+                          const monthNum = idx + 1;
+                          const dormant = formRepeatConfig.dormantMonths?.includes(monthNum) ?? false;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                const current = formRepeatConfig.dormantMonths ?? [];
+                                const next = dormant
+                                  ? current.filter((m) => m !== monthNum)
+                                  : [...current, monthNum].sort((a, b) => a - b);
+                                updateRepeatConfig({ dormantMonths: next });
+                              }}
+                              className={cn(
+                                "px-1 py-1 rounded text-[10px] font-medium transition-colors",
+                                dormant
+                                  ? "bg-red-500/15 text-red-400"
+                                  : "bg-surface-container-high/40 text-on-surface-variant/60 hover:text-on-surface"
+                              )}
+                            >
+                              {name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Next Due Preview */}
+            {nextDuePreview && (
+              <div className="rounded-xl bg-[var(--theme-primary)]/5 px-3 py-2 text-xs text-[var(--theme-primary)] flex items-center gap-2">
+                <Repeat size={12} />
+                <span>{nextDuePreview}</span>
+              </div>
+            )}
+
             {saveError && (
               <div className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-400">
                 Something went wrong. {saveError}

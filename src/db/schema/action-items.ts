@@ -24,6 +24,7 @@ export const actionItems = pgTable("action_items", {
     enum: [
       "none", "daily", "weekly", "biweekly", "monthly",
       "everyXdays", "specificWeekday", "specificMonthday", "ordinalWeekday",
+      "yearly", "dynamic",
     ],
   })
     .notNull()

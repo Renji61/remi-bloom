@@ -13,6 +13,7 @@ import {
   Sprout,
   Upload,
   X,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Button,
@@ -35,8 +36,9 @@ import {
   deleteUploadedImage,
 } from "@/lib/db";
 import { SafeImage } from "@/components/ui/safe-image";
-import { generateId } from "@/lib/utils";
+import { generateId, cn } from "@/lib/utils";
 import type { PlantLocation } from "@/lib/db";
+import { getUserSetting, setUserSetting } from "@/lib/db";
 
 const locationEmojis = ["🛋️", "🍳", "🌤️", "🛏️", "🚿", "💼", "🚪", "🏡", "🌿", "☀️", "🌙", "🏠"];
 
@@ -111,6 +113,51 @@ export default function LocationsPage() {
     }
     return counts;
   }, [plants]);
+
+  // Sort state
+  const [sortKey, setSortKey] = useState<"createdAt" | "name">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortLoaded, setSortLoaded] = useState(false);
+
+  // Load saved sort preferences
+  useEffect(() => {
+    async function loadSort() {
+      if (!currentUserId) return;
+      const [key, dir] = await Promise.all([
+        getUserSetting(currentUserId, "locationsSortKey"),
+        getUserSetting(currentUserId, "locationsSortDirection"),
+      ]);
+      if (key === "createdAt" || key === "name") setSortKey(key);
+      if (dir === "asc" || dir === "desc") setSortDirection(dir);
+      setSortLoaded(true);
+    }
+    loadSort();
+  }, [currentUserId]);
+
+  // Save sort preferences when they change
+  useEffect(() => {
+    if (!currentUserId || !sortLoaded) return;
+    setUserSetting(currentUserId, "locationsSortKey", sortKey);
+    setUserSetting(currentUserId, "locationsSortDirection", sortDirection);
+  }, [sortKey, sortDirection, currentUserId, sortLoaded]);
+
+  // Sorted locations
+  const sortedLocations = useMemo(() => {
+    const sorted = [...locations];
+    sorted.sort((a, b) => {
+      let cmp: number;
+      if (sortKey === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else {
+        cmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+      }
+      if (cmp === 0) {
+        cmp = a.name.localeCompare(b.name);
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [locations, sortKey, sortDirection]);
 
   // File upload handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +294,57 @@ export default function LocationsPage() {
         </Button>
       </div>
 
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
+          <button
+            onClick={() => { setSortKey("name"); setSortDirection("asc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "name" && sortDirection === "asc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            A→Z
+          </button>
+          <button
+            onClick={() => { setSortKey("name"); setSortDirection("desc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "name" && sortDirection === "desc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Z→A
+          </button>
+          <button
+            onClick={() => { setSortKey("createdAt"); setSortDirection("desc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "createdAt" && sortDirection === "desc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Newest
+          </button>
+          <button
+            onClick={() => { setSortKey("createdAt"); setSortDirection("asc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "createdAt" && sortDirection === "asc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Oldest
+          </button>
+        </div>
+        <ArrowUpDown size={12} className="text-on-surface-variant/40" />
+      </div>
+
       {/* Location Grid */}
       {locations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -269,7 +367,7 @@ export default function LocationsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">
-            {locations.map((loc, i) => {
+            {sortedLocations.map((loc, i) => {
               const thumbnail = getLocationThumbnail(loc);
               return (
                 <motion.div

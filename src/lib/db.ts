@@ -195,22 +195,46 @@ export type ActionRepeat =
   | "everyXdays"
   | "specificWeekday"
   | "specificMonthday"
-  | "ordinalWeekday";
+  | "ordinalWeekday"
+  | "yearly"
+  | "dynamic";
 
 export type Ordinal = "first" | "second" | "third" | "fourth";
 export type Weekday = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
 
 export interface RepeatConfig {
+  /** Keep existing type field for backward compat */
+  type?: string;
   /** For "everyXdays": how many days between repeats */
   intervalDays?: number;
-  /** For "specificWeekday": 0=Sun .. 6=Sat */
-  weekday?: number;
+  /** For weekly with multi-day selection: [0..6] */
+  intervalWeeks?: number;
+  /** For weekly multi-day selection: 0=Sun..6=Sat */
+  weekdays?: number[];
+  /** "dayOfMonth" | "nthWeekday" — how monthly mode resolves */
+  monthlyMode?: "dayOfMonth" | "nthWeekday";
   /** For "specificMonthday": 1..31 */
   monthday?: number;
+  /** For "specificMonthday" (new name): 1..31 */
+  dayOfMonth?: number;
+  /** For nth-weekday mode: 0..3 or "last" */
+  nth?: number | "last";
+  /** For "specificWeekday" / nth-weekday target: 0=Sun..6=Sat */
+  weekday?: number;
   /** For "ordinalWeekday": which ordinal */
   ordinal?: Ordinal;
   /** For "ordinalWeekday": which day */
   ordinalWeekday?: Weekday;
+  /** Monthly/yearly interval multiplier */
+  intervalMonths?: number;
+  /** Yearly interval multiplier */
+  intervalYears?: number;
+  /** For "dynamic" interval mode: recalculate after completion */
+  dynamicAfterCompletion?: boolean;
+  /** [1..12] — months when this repeat is active */
+  activeMonths?: number[];
+  /** [1..12] — months to skip entirely */
+  dormantMonths?: number[];
 }
 
 export interface ActionItem {

@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Tags,
@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   Sprout,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Button,
@@ -25,7 +26,8 @@ import {
 } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import { addTag, deleteTag, updateTag } from "@/lib/db";
-import { generateId } from "@/lib/utils";
+import { getUserSetting, setUserSetting } from "@/lib/db";
+import { generateId, cn } from "@/lib/utils";
 import type { Tag } from "@/lib/db";
 
 const tagColors = [
@@ -61,6 +63,51 @@ export default function TagsPage() {
     }
     return counts;
   }, [plants]);
+
+  // Sort state
+  const [sortKey, setSortKey] = useState<"createdAt" | "name">("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortLoaded, setSortLoaded] = useState(false);
+
+  // Load saved sort preferences
+  useEffect(() => {
+    async function loadSort() {
+      if (!currentUserId) return;
+      const [key, dir] = await Promise.all([
+        getUserSetting(currentUserId, "tagsSortKey"),
+        getUserSetting(currentUserId, "tagsSortDirection"),
+      ]);
+      if (key === "createdAt" || key === "name") setSortKey(key);
+      if (dir === "asc" || dir === "desc") setSortDirection(dir);
+      setSortLoaded(true);
+    }
+    loadSort();
+  }, [currentUserId]);
+
+  // Save sort preferences when they change
+  useEffect(() => {
+    if (!currentUserId || !sortLoaded) return;
+    setUserSetting(currentUserId, "tagsSortKey", sortKey);
+    setUserSetting(currentUserId, "tagsSortDirection", sortDirection);
+  }, [sortKey, sortDirection, currentUserId, sortLoaded]);
+
+  // Sorted tags
+  const sortedTags = useMemo(() => {
+    const sorted = [...tags];
+    sorted.sort((a, b) => {
+      let cmp: number;
+      if (sortKey === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else {
+        cmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+      }
+      if (cmp === 0) {
+        cmp = a.name.localeCompare(b.name);
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [tags, sortKey, sortDirection]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -125,6 +172,57 @@ export default function TagsPage() {
         </Button>
       </div>
 
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
+          <button
+            onClick={() => { setSortKey("createdAt"); setSortDirection("desc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "createdAt" && sortDirection === "desc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Newest
+          </button>
+          <button
+            onClick={() => { setSortKey("name"); setSortDirection("asc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "name" && sortDirection === "asc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            A→Z
+          </button>
+          <button
+            onClick={() => { setSortKey("name"); setSortDirection("desc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "name" && sortDirection === "desc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Z→A
+          </button>
+          <button
+            onClick={() => { setSortKey("createdAt"); setSortDirection("asc"); }}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+              sortKey === "createdAt" && sortDirection === "asc"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            )}
+          >
+            Oldest
+          </button>
+        </div>
+        <ArrowUpDown size={12} className="text-on-surface-variant/40" />
+      </div>
+
       {/* Tag Grid */}
       {tags.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -143,7 +241,7 @@ export default function TagsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">
-            {tags.map((tag, i) => (
+            {sortedTags.map((tag, i) => (
               <motion.div
                 key={tag.id}
                 initial={{ opacity: 0, y: 16 }}
