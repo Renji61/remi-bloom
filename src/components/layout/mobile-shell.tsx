@@ -11,7 +11,6 @@ import {
   Package,
   Settings,
   Calendar,
-  Bell,
   CheckSquare,
   TrendingUp,
   Sun,
@@ -38,7 +37,6 @@ const PAGE_ICONS_MOBILE: Record<string, { icon: any; color: string }> = {
   "/settings": { icon: Settings, color: "text-slate-400" },
   "/profile": { icon: User, color: "text-indigo-400" },
   "/planner": { icon: LayoutGrid, color: "text-teal-400" },
-  "/notifications": { icon: Bell, color: "text-pink-400" },
   "/identify": { icon: Scan, color: "text-cyan-400" },
   "/weather": { icon: Sun, color: "text-yellow-400" },
   "/share": { icon: Users, color: "text-blue-400" },
@@ -53,14 +51,13 @@ const mainNavItems = [
 ];
 
 const subNavItems = [
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/locations", label: "Locations", icon: MapPin },
   { href: "/tags", label: "Tags", icon: Tags },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/weather", label: "Weather", icon: Sun },
   { href: "/share", label: "Share", icon: Users },
+  { href: "/weather", label: "Weather", icon: Sun },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/journal", label: "Journal", icon: BookOpen },
 ];
 
 export function MobileShell({ children }: { children: React.ReactNode }) {

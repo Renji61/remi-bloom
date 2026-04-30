@@ -5,7 +5,7 @@ import { StatusIndicators } from "./status-indicators";
 import { WeatherBadge, HeaderThemeToggle, NotificationsBadge } from "./weather-badge";
 import {
   Sprout, User, CalendarDays, BookOpen, MapPin, Package,
-  Settings, Scan, Bell, Sun, LayoutGrid, Users, Shield, Tags,
+  Settings, Scan, Sun, LayoutGrid, Users, Shield, Tags,
 } from "lucide-react";
 import { useMemo } from "react";
 import Link from "next/link";
@@ -23,7 +23,6 @@ const PAGE_ICONS: Record<string, { icon: any; color: string }> = {
   "/settings": { icon: Settings, color: "text-slate-400" },
   "/profile": { icon: User, color: "text-indigo-400" },
   "/planner": { icon: LayoutGrid, color: "text-teal-400" },
-  "/notifications": { icon: Bell, color: "text-pink-400" },
   "/identify": { icon: Scan, color: "text-cyan-400" },
   "/weather": { icon: Sun, color: "text-yellow-400" },
   "/share": { icon: Users, color: "text-blue-400" },
@@ -34,7 +33,6 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/home": { title: "My Greenhouse", subtitle: "Manage your plant collection" },
   "/calendar": { title: "Calendar", subtitle: "Track care tasks and schedules" },
   "/planner": { title: "Garden Planner", subtitle: "Design your garden with square-foot precision" },
-  "/notifications": { title: "Notifications", subtitle: "Stay updated on your garden" },
   "/identify": { title: "Identify Plants", subtitle: "AI-powered plant identification" },
   "/journal": { title: "Journal", subtitle: "Record your gardening journey" },
   "/locations": { title: "Plant Locations", subtitle: "Organize your growing spaces" },

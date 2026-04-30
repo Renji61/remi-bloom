@@ -6,20 +6,16 @@ import {
   Menu,
   Sprout,
   LayoutGrid,
-  Scan,
-  BookOpen,
-  MapPin,
   Package,
   Settings,
   Calendar,
-  Bell,
-  CheckSquare,
   Sun,
+  BookOpen,
+  MapPin,
+  Tags,
   Users,
-  Sparkles,
   User,
   Shield,
-  Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -27,14 +23,13 @@ import { useAppStore } from "@/stores/app-store";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Sprout },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/planner", label: "Garden", icon: LayoutGrid },
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/weather", label: "Weather", icon: Sun },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/locations", label: "Locations", icon: MapPin },
   { href: "/tags", label: "Tags", icon: Tags },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/weather", label: "Weather", icon: Sun },
   { href: "/share", label: "Share", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
