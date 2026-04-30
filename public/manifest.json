@@ -27,14 +27,14 @@
   "screenshots": [
     {
       "src": "/screenshots/narrow.png",
-      "sizes": "1080x2340",
+      "sizes": "1082x2402",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "REMI Bloom home screen on mobile"
     },
     {
       "src": "/screenshots/wide.png",
-      "sizes": "1920x1080",
+      "sizes": "2360x1640",
       "type": "image/png",
       "form_factor": "wide",
       "label": "REMI Bloom dashboard on desktop"
