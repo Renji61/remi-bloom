@@ -5,7 +5,7 @@ import { StatusIndicators } from "./status-indicators";
 import { WeatherBadge, HeaderThemeToggle, NotificationsBadge } from "./weather-badge";
 import {
   Sprout, User, CalendarDays, BookOpen, MapPin, Package,
-  Settings, Scan, Bell, Sun, LayoutGrid, Users, Shield,
+  Settings, Scan, Bell, Sun, LayoutGrid, Users, Shield, Tags,
 } from "lucide-react";
 import { useMemo } from "react";
 import Link from "next/link";
@@ -18,6 +18,7 @@ const PAGE_ICONS: Record<string, { icon: any; color: string }> = {
   "/calendar": { icon: CalendarDays, color: "text-sky-400" },
   "/journal": { icon: BookOpen, color: "text-amber-400" },
   "/locations": { icon: MapPin, color: "text-rose-400" },
+  "/tags": { icon: Tags, color: "text-fuchsia-400" },
   "/inventory": { icon: Package, color: "text-violet-400" },
   "/settings": { icon: Settings, color: "text-slate-400" },
   "/profile": { icon: User, color: "text-indigo-400" },
@@ -37,6 +38,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/identify": { title: "Identify Plants", subtitle: "AI-powered plant identification" },
   "/journal": { title: "Journal", subtitle: "Record your gardening journey" },
   "/locations": { title: "Plant Locations", subtitle: "Organize your growing spaces" },
+  "/tags": { title: "Tags", subtitle: "Categorize your plants" },
   "/inventory": { title: "Inventory", subtitle: "Track your supplies and tools" },
   "/weather": { title: "Weather", subtitle: "Current conditions for your area" },
   "/share": { title: "Shared Garden", subtitle: "Collaborate with fellow gardeners" },

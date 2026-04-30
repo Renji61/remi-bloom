@@ -20,6 +20,7 @@ import {
   User,
   Shield,
   CalendarDays,
+  Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusIndicators } from "./status-indicators";
@@ -32,6 +33,7 @@ const PAGE_ICONS_MOBILE: Record<string, { icon: any; color: string }> = {
   "/calendar": { icon: CalendarDays, color: "text-sky-400" },
   "/journal": { icon: BookOpen, color: "text-amber-400" },
   "/locations": { icon: MapPin, color: "text-rose-400" },
+  "/tags": { icon: Tags, color: "text-fuchsia-400" },
   "/inventory": { icon: Package, color: "text-violet-400" },
   "/settings": { icon: Settings, color: "text-slate-400" },
   "/profile": { icon: User, color: "text-indigo-400" },
@@ -53,6 +55,7 @@ const mainNavItems = [
 const subNavItems = [
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/locations", label: "Locations", icon: MapPin },
+  { href: "/tags", label: "Tags", icon: Tags },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/weather", label: "Weather", icon: Sun },
   { href: "/share", label: "Share", icon: Users },

@@ -124,6 +124,7 @@ interface AppState {
   // Actions — Tags
   setTags: (tags: Tag[]) => void;
   addTag: (tag: Tag) => void;
+  updateTag: (tag: Tag) => void;
   removeTag: (id: string) => void;
 
   // Actions — Care Events
@@ -355,6 +356,10 @@ export const useAppStore = create<AppState>((set) => ({
   setTags: (tags) => set({ tags }),
   addTag: (tag) =>
     set((state) => ({ tags: [...state.tags, tag] })),
+  updateTag: (tag) =>
+    set((state) => ({
+      tags: state.tags.map((t) => (t.id === tag.id ? tag : t)),
+    })),
   removeTag: (id) =>
     set((state) => ({
       tags: state.tags.filter((t) => t.id !== id),

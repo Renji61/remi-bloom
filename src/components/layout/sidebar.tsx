@@ -19,6 +19,7 @@ import {
   Sparkles,
   User,
   Shield,
+  Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/locations", label: "Locations", icon: MapPin },
+  { href: "/tags", label: "Tags", icon: Tags },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/weather", label: "Weather", icon: Sun },
   { href: "/share", label: "Share", icon: Users },

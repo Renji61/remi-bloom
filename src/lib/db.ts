@@ -821,6 +821,12 @@ export async function addTag(tag: Tag) {
   return result;
 }
 
+export async function updateTag(tag: Tag) {
+  const result = await db.tags.put(tag);
+  await enqueueAndReplay(tag.userId, "tag", "update", tag, tag.id);
+  return result;
+}
+
 export async function deleteTag(id: string) {
   const tag = await db.tags.get(id);
   const result = await db.tags.delete(id);
