@@ -531,8 +531,8 @@ export function IdentifyPlantDialog({
 
       // Build description from identification data
       const careLines: string[] = [];
-      if (result.sunlightNeeds.length > 0) {
-        careLines.push(`☀️ Light: ${result.sunlightNeeds.join(", ")}`);
+      if (identificationResult.sunlightNeeds.length > 0) {
+        careLines.push(`☀️ Light: ${identificationResult.sunlightNeeds.join(", ")}`);
       }
       for (const cs of identificationResult.careSchedules) {
         const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;

@@ -98,15 +98,18 @@ export function TimelineEntryCard({
           )}
 
           {/* Note content (handles both journal `note` and growth `notes` fields) */}
-          {entry.note && (
-            <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-wrap">
-              {entry.note}
-            </p>
-          )}
-          {(entry as ProgressEntry).notes && !entry.note && (
-            <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-wrap">
-              {(entry as ProgressEntry).notes}
-            </p>
+          {isJournal ? (
+            (entry as JournalEntry).note && (
+              <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-wrap">
+                {(entry as JournalEntry).note}
+              </p>
+            )
+          ) : (
+            growthEntry?.notes && (
+              <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-wrap">
+                {growthEntry.notes}
+              </p>
+            )
           )}
 
           {photoUrl && (
