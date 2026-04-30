@@ -278,12 +278,36 @@ export function DataSettings() {
 
   // ── Seeding handlers ──
 
+  /** Push seeded data to the server API if available. */
+  async function syncSeededData() {
+    try {
+      const plants = await db.plants.where("userId").equals(currentUserId ?? "").toArray();
+      const locations = await db.plantLocations.where("userId").equals(currentUserId ?? "").toArray();
+      const tags = await db.tags.where("userId").equals(currentUserId ?? "").toArray();
+
+      const operations = [
+        ...plants.map((p) => ({ action: "create" as const, entity: "plant" as const, data: p })),
+        ...locations.map((l) => ({ action: "create" as const, entity: "location" as const, data: l })),
+        ...tags.map((t) => ({ action: "create" as const, entity: "tag" as const, data: t })),
+      ];
+
+      await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operations }),
+      });
+    } catch {
+      // Server may not be available; data is in IndexedDB
+    }
+  }
+
   const handleSeedTags = async () => {
     if (!currentUserId) return;
     setSeeding("tags");
     setStatus({ type: null, message: "" });
     try {
       await forceSeedTags(mockTags, currentUserId);
+      await syncSeededData();
       const { loadFromIndexedDB } = await import("@/lib/load-user-data");
       const store = useAppStore.getState();
       await loadFromIndexedDB(currentUserId, store);
@@ -301,6 +325,7 @@ export function DataSettings() {
     setStatus({ type: null, message: "" });
     try {
       await forceSeedLocations(mockLocations, currentUserId);
+      await syncSeededData();
       const { loadFromIndexedDB } = await import("@/lib/load-user-data");
       const store = useAppStore.getState();
       await loadFromIndexedDB(currentUserId, store);
@@ -318,6 +343,7 @@ export function DataSettings() {
     setStatus({ type: null, message: "" });
     try {
       await forceSeedPlants(mockPlants, currentUserId);
+      await syncSeededData();
       const { loadFromIndexedDB } = await import("@/lib/load-user-data");
       const store = useAppStore.getState();
       await loadFromIndexedDB(currentUserId, store);

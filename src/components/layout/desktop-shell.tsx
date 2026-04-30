@@ -7,6 +7,7 @@ import {
   Sprout, User, CalendarDays, BookOpen, MapPin, Package,
   Settings, Scan, Bell, Sun, LayoutGrid, Users, Shield,
 } from "lucide-react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useAppStore } from "@/stores/app-store";
 import { usePathname } from "next/navigation";
@@ -48,7 +49,14 @@ export function DesktopShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const currentUser = useAppStore((s) => s.currentUser);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
-  const pageInfo = PAGE_TITLES[pathname] ?? { title: "REMI Bloom", subtitle: "" };
+  const greenhouseName = useAppStore((s) => s.greenhouseName);
+  const pageInfo = useMemo(() => {
+    const info = PAGE_TITLES[pathname] ?? { title: "REMI Bloom", subtitle: "" };
+    if (pathname === "/home") {
+      return { ...info, title: greenhouseName };
+    }
+    return info;
+  }, [pathname, greenhouseName]);
   const pageIcon = PAGE_ICONS[pathname] ?? { icon: Sprout, color: "text-[var(--theme-primary)]" };
   const IconComponent = pageIcon.icon;
 
