@@ -29,11 +29,12 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, "aria-describedby": ariaDescribedby = undefined, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      aria-describedby={ariaDescribedby}
       className={cn(
         "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
         "rounded-2xl border border-outline-variant/40 bg-surface/90 p-6 shadow-2xl",

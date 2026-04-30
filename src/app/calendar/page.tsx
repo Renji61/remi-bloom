@@ -105,7 +105,7 @@ export default function CalendarPage() {
     setFormDate(date);
     setFormTime("");
     setFormNote("");
-    setFormPlantId("");
+    setFormPlantId("none");
     setShowForm(true);
   };
 
@@ -120,7 +120,7 @@ export default function CalendarPage() {
   const [formDate, setFormDate] = useState("");
   const [formTime, setFormTime] = useState("");
   const [formNote, setFormNote] = useState("");
-  const [formPlantId, setFormPlantId] = useState("");
+  const [formPlantId, setFormPlantId] = useState("none");
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function CalendarPage() {
       setFormDate(editingAction.date?.substring(0, 10) || "");
       setFormTime(editingAction.time || "");
       setFormNote(editingAction.note || "");
-      setFormPlantId((editingAction.plantIds?.[0]) || "");
+      setFormPlantId((editingAction.plantIds?.[0]) || "none");
     }
   }, [editingAction]);
 
@@ -155,8 +155,8 @@ export default function CalendarPage() {
         date: formDate,
         time: formTime,
         completed: editingAction?.completed || false,
-        plantIds: formPlantId ? [formPlantId] : [],
-        plantNames: formPlantId
+        plantIds: formPlantId && formPlantId !== "none" ? [formPlantId] : [],
+        plantNames: formPlantId && formPlantId !== "none"
           ? [plants.find((p) => p.id === formPlantId)?.name || ""]
           : [],
         note: formNote,
@@ -418,7 +418,7 @@ export default function CalendarPage() {
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {plants.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.emoji} {p.name}</SelectItem>
                   ))}
