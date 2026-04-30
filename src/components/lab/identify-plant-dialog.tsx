@@ -15,15 +15,21 @@ import {
   Droplets,
   Sun,
   Package,
-  User,
   RefreshCw,
   Sprout,
 } from "lucide-react";
-import { Button, Card, CardContent, Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui";
-import { CameraView } from "./camera-view";
+import {
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui";
+import { CameraView } from "@/components/lab/camera-view";
 import { IdentificationManager } from "@/lib/identification-manager";
-import { addActionItem, addPlant, uploadImage } from "@/lib/db";
-import { generateId } from "@/lib/utils";
+import { uploadImage } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import type {
   IdentificationResult,
@@ -33,8 +39,21 @@ import type {
 } from "@/lib/identification-manager";
 import type { ActionItem } from "@/lib/db";
 
-// --- Step indicator ---
+export interface IdentifyResult {
+  name: string;
+  scientificName: string;
+  description: string;
+  imageUrl: string;
+  careTasks: ActionItem[];
+}
 
+interface IdentifyPlantDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onComplete: (result: IdentifyResult) => void;
+}
+
+// --- Step indicator ---
 function ScanningOverlay({
   progress,
   onCancel,
@@ -108,7 +127,6 @@ function ScanningOverlay({
 }
 
 // --- Manual name search fallback ---
-
 function ManualNameSearch({
   onSelect,
   onBack,
@@ -188,76 +206,17 @@ function ManualNameSearch({
   );
 }
 
-// --- Summary Card after save ---
-
-function SummaryCard({
-  result,
-  createdTasks,
-  onDone,
-}: {
-  result: IdentificationResult;
-  createdTasks: string[];
-  onDone: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="space-y-4"
-    >
-      <Card>
-        <CardContent className="p-5 text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-            <Sprout size={32} className="text-emerald-400" />
-          </div>
-          <h2 className="text-lg font-bold text-on-surface">Plant Identified!</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            Identified as:{" "}
-            <span className="font-semibold italic text-[var(--theme-primary)]">
-              {result.species.name}
-            </span>
-          </p>
-          {result.species.scientificName && (
-            <p className="text-xs text-on-surface-variant/60 italic">
-              {result.species.scientificName}
-            </p>
-          )}
-          {result.careSchedules.length > 0 && (
-            <div className="mt-4 space-y-1.5">
-              {createdTasks.map((task, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400/80"
-                >
-                  <Check size={12} />
-                  <span>{task}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Button onClick={onDone} className="w-full">
-        Done
-      </Button>
-    </motion.div>
-  );
-}
-
 // --- Confirm Identity screen ---
-
 function ConfirmIdentityScreen({
   result,
   onConfirm,
   onSelectMatch,
   onCancel,
-  inventory,
 }: {
   result: IdentificationResult;
   onConfirm: (customName?: string, customSciName?: string) => void;
   onSelectMatch: (name: string, sciName: string) => void;
   onCancel: () => void;
-  inventory: { name: string; category: string }[];
 }) {
   const [editingName, setEditingName] = useState(result.species.name);
   const [editingSciName, setEditingSciName] = useState(result.species.scientificName);
@@ -414,8 +373,8 @@ function ConfirmIdentityScreen({
           onClick={() => onConfirm(editingName, editingSciName)}
           className="flex-1"
         >
-          <Check size={14} />
-          Confirm & Save
+          <Sparkles size={14} />
+          Add the Plant
         </Button>
       </div>
     </motion.div>
@@ -432,18 +391,17 @@ const ScissorsIcon = ({ size, className }: { size: number; className?: string })
   </svg>
 );
 
-// ===============================
-// MAIN COMPONENT
-// ===============================
-
 type Screen =
   | "capture"
   | "scanning"
   | "confirm"
-  | "summary"
   | "manualSearch";
 
-export function PlantIdentifier() {
+export function IdentifyPlantDialog({
+  open,
+  onOpenChange,
+  onComplete,
+}: IdentifyPlantDialogProps) {
   const currentUserId = useAppStore((s) => s.currentUserId);
   const [imageData, setImageData] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -454,8 +412,19 @@ export function PlantIdentifier() {
   const [identificationResult, setIdentificationResult] = useState<IdentificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [createdTasks, setCreatedTasks] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const reset = () => {
+    setImageData(null);
+    setImageFile(null);
+    setScreen("capture");
+    setShowCamera(false);
+    setUploadError(null);
+    setError(null);
+    setIdentificationResult(null);
+    setScanProgress({ step: 0, message: "" });
+    setSaving(false);
+  };
 
   const handleCapture = (data: string, file?: File) => {
     setImageData(data);
@@ -506,7 +475,6 @@ export function PlantIdentifier() {
     try {
       let fileToUse = imageFile;
       if (!fileToUse && imageData) {
-        // Convert data URL back to File
         const resp = await fetch(imageData);
         const blob = await resp.blob();
         fileToUse = new File([blob], "capture.webp", { type: "image/webp" });
@@ -523,10 +491,8 @@ export function PlantIdentifier() {
       if (result.species.confidence >= 80) {
         setScreen("confirm");
       } else if (result.topMatches.length > 0) {
-        // Low confidence — show confirm screen with alternatives
         setScreen("confirm");
       } else {
-        // No results at all
         setScreen("manualSearch");
       }
     } catch (err) {
@@ -541,14 +507,12 @@ export function PlantIdentifier() {
     setError(null);
 
     try {
-      const tasks: string[] = [];
-      const plantId = generateId();
       const name = customName || identificationResult.species.name;
       const sciName = customSciName || identificationResult.species.scientificName;
       const today = new Date().toISOString().split("T")[0];
 
       // Upload the image to IndexedDB for persistence
-      let imageUrl = identificationResult.imageDataUrl || "";
+      let imageUrl = "";
       if (imageFile || imageData) {
         try {
           const fileToUpload = imageFile
@@ -561,31 +525,31 @@ export function PlantIdentifier() {
           const uploaded = await uploadImage(fileToUpload);
           imageUrl = `upload:${uploaded.id}`;
         } catch {
-          // Fall back to data URL if upload to IndexedDB fails
           imageUrl = identificationResult.imageDataUrl || "";
         }
       }
 
-      // 1. Save the plant
-      const plant = {
-        id: plantId,
-        userId: currentUserId ?? "",
-        name,
-        scientificName: sciName,
-        description: `Identified via PlantIntelligenceService on ${new Date().toLocaleDateString()}. Confidence: ${identificationResult.species.confidence}%.`,
-        emoji: "🌿",
-        imageUrl,
-        createdAt: new Date().toISOString(),
-        plantedDate: null,
-        locationId: null,
-        tags: [],
-      };
-      await addPlant(plant);
-
-      // 2. Create ActionItems for each care schedule
+      // Build description from identification data
+      const careLines: string[] = [];
+      if (result.sunlightNeeds.length > 0) {
+        careLines.push(`☀️ Light: ${result.sunlightNeeds.join(", ")}`);
+      }
       for (const cs of identificationResult.careSchedules) {
-        const actionItem: ActionItem = {
-          id: generateId(),
+        const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;
+        careLines.push(`${cs.label}: ${freq}`);
+      }
+      if (identificationResult.fertilizers.length > 0) {
+        careLines.push(`🧪 Recommended fertilizer: ${identificationResult.fertilizers.map((f) => f.name).join(", ")}`);
+      }
+      const description = careLines.length > 0
+        ? careLines.join("\n")
+        : `Identified via PlantIntelligenceService on ${new Date().toLocaleDateString()}. Confidence: ${identificationResult.species.confidence}%.`;
+
+      // Build care schedule tasks
+      const careTasks: ActionItem[] = [];
+      for (const cs of identificationResult.careSchedules) {
+        careTasks.push({
+          id: "",
           userId: currentUserId ?? "",
           title: `${cs.label} — ${name}`,
           source: "system",
@@ -593,33 +557,22 @@ export function PlantIdentifier() {
           date: today,
           time: "",
           completed: false,
-          plantIds: [plantId],
+          plantIds: [],
           plantNames: [name],
-          note: cs.note || `Automated ${cs.label.toLowerCase()} schedule from identification`,
+          note: cs.note || `Automated schedule from identification`,
           repeat: "everyXdays",
           repeatConfig: { intervalDays: cs.frequencyDays },
           snoozedUntil: null,
           category: cs.type,
           createdAt: new Date().toISOString(),
-        };
-        await addActionItem(actionItem);
-
-        const taskLabel =
-          cs.type === "water"
-            ? "watering"
-            : cs.type === "fertilize"
-              ? "fertilizing"
-              : cs.type === "prune"
-                ? "pruning"
-                : cs.label.toLowerCase();
-        tasks.push(`Added ${taskLabel} reminder every ${cs.frequencyDays} days`);
+        });
       }
 
-      // 3. Create "purchase fertilizer" tasks for missing fertilizers
+      // Also create purchase tasks for missing fertilizers
       for (const f of identificationResult.fertilizers) {
         if (!f.inStock) {
-          const actionItem: ActionItem = {
-            id: generateId(),
+          careTasks.push({
+            id: "",
             userId: currentUserId ?? "",
             title: `Purchase ${f.name} for ${name}`,
             source: "manual",
@@ -627,7 +580,7 @@ export function PlantIdentifier() {
             date: today,
             time: "",
             completed: false,
-            plantIds: [plantId],
+            plantIds: [],
             plantNames: [name],
             note: `Fertilizer recommended for ${name} (${sciName})`,
             repeat: "none",
@@ -635,16 +588,19 @@ export function PlantIdentifier() {
             snoozedUntil: null,
             category: "maintenance",
             createdAt: new Date().toISOString(),
-          };
-          await addActionItem(actionItem);
-          tasks.push(`Added task: Purchase ${f.name}`);
+          });
         }
       }
 
-      setCreatedTasks(tasks);
-      setScreen("summary");
+      onComplete({
+        name,
+        scientificName: sciName,
+        description,
+        imageUrl,
+        careTasks,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save. Try again.");
+      setError(err instanceof Error ? err.message : "Failed to process identification. Try again.");
     } finally {
       setSaving(false);
     }
@@ -652,7 +608,6 @@ export function PlantIdentifier() {
 
   const handleSelectMatch = (name: string, sciName: string) => {
     if (!identificationResult) return;
-    // Update the top match and re-show confirm screen
     setIdentificationResult({
       ...identificationResult,
       species: { ...identificationResult.species, name, scientificName: sciName, confidence: 100 },
@@ -661,7 +616,6 @@ export function PlantIdentifier() {
   };
 
   const handleManualSearchSelect = async (name: string, sciName: string) => {
-    // Fetch care data for the manually selected plant
     setScreen("scanning");
     setScanProgress({ step: 2, message: "Step 2: Retrieving expert care guides..." });
 
@@ -685,160 +639,151 @@ export function PlantIdentifier() {
     }
   };
 
-  const handleReset = () => {
-    setImageData(null);
-    setImageFile(null);
-    setScreen("capture");
-    setShowCamera(false);
-    setUploadError(null);
-    setError(null);
-    setIdentificationResult(null);
-    setCreatedTasks([]);
-    setScanProgress({ step: 0, message: "" });
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      reset();
+    }
+    onOpenChange(open);
   };
 
   const isCapturing = imageData && screen === "capture";
 
   return (
-    <div className="space-y-4">
-      {/* Error banner */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 rounded-2xl bg-red-500/10 px-4 py-3"
-        >
-          <AlertCircle size={14} className="shrink-0 text-red-400" />
-          <p className="text-xs text-red-300">{error}</p>
-        </motion.div>
-      )}
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Identify Plants</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {/* Error banner */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 rounded-2xl bg-red-500/10 px-4 py-3"
+            >
+              <AlertCircle size={14} className="shrink-0 text-red-400" />
+              <p className="text-xs text-red-300">{error}</p>
+            </motion.div>
+          )}
 
-      {uploadError && (
-        <p className="text-[11px] text-red-400 text-center">{uploadError}</p>
-      )}
+          {uploadError && (
+            <p className="text-[11px] text-red-400 text-center">{uploadError}</p>
+          )}
 
-      {/* Image Source Selection */}
-      {screen === "capture" && !imageData && !showCamera && (
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setShowCamera(true)}
-            className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container/30 p-6 text-center transition-all hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--theme-primary)]/10">
-              <Camera size={24} className="text-[var(--theme-primary)]" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-on-surface">Take a Photo</p>
-              <p className="mt-0.5 text-[10px] text-on-surface-variant/60">Use your camera</p>
-            </div>
-          </button>
+          {/* Image Source Selection */}
+          {screen === "capture" && !imageData && !showCamera && (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowCamera(true)}
+                className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container/30 p-6 text-center transition-all hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--theme-primary)]/10">
+                  <Camera size={24} className="text-[var(--theme-primary)]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">Take a Photo</p>
+                  <p className="mt-0.5 text-[10px] text-on-surface-variant/60">Use your camera</p>
+                </div>
+              </button>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container/30 p-6 text-center transition-all hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-high">
-              <Upload size={24} className="text-on-surface-variant" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-on-surface">Upload Image</p>
-              <p className="mt-0.5 text-[10px] text-on-surface-variant/60">From your device</p>
-            </div>
-          </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container/30 p-6 text-center transition-all hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-high">
+                  <Upload size={24} className="text-on-surface-variant" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">Upload Image</p>
+                  <p className="mt-0.5 text-[10px] text-on-surface-variant/60">From your device</p>
+                </div>
+              </button>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/avif,image/bmp,image/tiff"
-            className="hidden"
-            onChange={handleFileUpload}
-            aria-label="Upload plant identification image"
-          />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/avif,image/bmp,image/tiff"
+                className="hidden"
+                onChange={handleFileUpload}
+                aria-label="Upload plant identification image"
+              />
+            </div>
+          )}
+
+          {/* Camera View */}
+          {showCamera && !imageData && (
+            <CameraView
+              onCapture={(data) => {
+                fetch(data)
+                  .then((r) => r.blob())
+                  .then((blob) => {
+                    const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+                    handleCapture(data, file);
+                  });
+              }}
+            />
+          )}
+
+          {/* Captured image preview */}
+          {isCapturing && (
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src={imageData!}
+                alt="Captured plant"
+                className="w-full max-h-[35vh] min-h-[180px] object-contain bg-surface-container/40"
+              />
+              <button
+                onClick={() => { setImageData(null); setImageFile(null); }}
+                className="absolute right-3 top-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white backdrop-blur-sm"
+              >
+                Retake
+              </button>
+            </div>
+          )}
+
+          {/* Identify button */}
+          {isCapturing && (
+            <Button onClick={handleIdentify} className="w-full" size="lg">
+              <Search size={16} />
+              Identify Plant
+            </Button>
+          )}
+
+          {/* Scanning overlay */}
+          {screen === "scanning" && (
+            <ScanningOverlay progress={scanProgress} onCancel={reset} />
+          )}
+
+          {/* Confirm Identity screen */}
+          {screen === "confirm" && identificationResult && (
+            <ConfirmIdentityScreen
+              result={identificationResult}
+              onConfirm={handleConfirm}
+              onSelectMatch={handleSelectMatch}
+              onCancel={reset}
+            />
+          )}
+
+          {/* Manual search fallback */}
+          {screen === "manualSearch" && (
+            <ManualNameSearch
+              onSelect={handleManualSearchSelect}
+              onBack={reset}
+            />
+          )}
+
+          {/* Saving indicator */}
+          {saving && (
+            <div className="flex items-center justify-center py-4">
+              <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                <RefreshCw size={14} className="animate-spin" />
+                Processing...
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Camera View */}
-      {showCamera && !imageData && (
-        <CameraView
-          onCapture={(data) => {
-            // CameraView gives base64 JPEG, wrap it as a File
-            fetch(data)
-              .then((r) => r.blob())
-              .then((blob) => {
-                const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
-                handleCapture(data, file);
-              });
-          }}
-        />
-      )}
-
-      {/* Captured image preview — responsive height so identify button is always visible */}
-      {isCapturing && (
-        <div className="relative overflow-hidden rounded-2xl">
-          <img
-            src={imageData!}
-            alt="Captured plant"
-            className="w-full max-h-[35vh] min-h-[180px] object-contain bg-surface-container/40"
-          />
-          <button
-            onClick={() => { setImageData(null); setImageFile(null); }}
-            className="absolute right-3 top-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white backdrop-blur-sm"
-          >
-            Retake
-          </button>
-        </div>
-      )}
-
-      {/* Identify button */}
-      {isCapturing && (
-        <Button onClick={handleIdentify} className="w-full" size="lg">
-          <Search size={16} />
-          Identify Plant
-        </Button>
-      )}
-
-      {/* Scanning overlay */}
-      {screen === "scanning" && (
-        <ScanningOverlay progress={scanProgress} onCancel={handleReset} />
-      )}
-
-      {/* Confirm Identity screen */}
-      {screen === "confirm" && identificationResult && (
-        <ConfirmIdentityScreen
-          result={identificationResult}
-          onConfirm={handleConfirm}
-          onSelectMatch={handleSelectMatch}
-          onCancel={handleReset}
-          inventory={[]}
-        />
-      )}
-
-      {/* Manual search fallback */}
-      {screen === "manualSearch" && (
-        <ManualNameSearch
-          onSelect={handleManualSearchSelect}
-          onBack={handleReset}
-        />
-      )}
-
-      {/* Saving indicator */}
-      {saving && (
-        <div className="flex items-center justify-center py-4">
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-            <RefreshCw size={14} className="animate-spin" />
-            Saving plant and creating tasks...
-          </div>
-        </div>
-      )}
-
-      {/* Summary */}
-      {screen === "summary" && identificationResult && (
-        <SummaryCard
-          result={identificationResult}
-          createdTasks={createdTasks}
-          onDone={handleReset}
-        />
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

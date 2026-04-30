@@ -13,12 +13,10 @@ import {
   Trash2,
   X,
   Upload,
-  Ruler,
-  Leaf,
-  Apple,
 } from "lucide-react";
 import {
   Button,
+  Card,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -31,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui";
-import { JournalEntryCard } from "@/components/journal/journal-entry";
+import { TimelineEntryCard } from "@/components/journal/timeline-entry-card";
 import { useAppStore } from "@/stores/app-store";
 import {
   addJournalEntry,
@@ -44,8 +42,7 @@ import {
   getImageUrl,
   deleteUploadedImage,
 } from "@/lib/db";
-import { SafeImage } from "@/components/ui/safe-image";
-import { generateId, formatDate } from "@/lib/utils";
+import { generateId } from "@/lib/utils";
 import type { JournalEntry, ProgressEntry } from "@/lib/db";
 
 type EntryType = "journal" | "growth";
@@ -145,7 +142,8 @@ export default function JournalPage() {
     setEntryType("journal");
     setEditingEntry(null);
     setNote("");
-    setSelectedPlantId("");
+    setSelectedPlantId(plants.length > 0 ? plants[0].id : "");
+    setGrowthDate(new Date().toISOString().split("T")[0]);
     resetUpload();
     setOpen(true);
   };
@@ -170,6 +168,7 @@ export default function JournalPage() {
     setEntryType(entry.type);
     setSelectedPlantId(entry.plantId);
     setNote(entry.note);
+    setGrowthDate(entry.date?.split("T")[0] || new Date().toISOString().split("T")[0]);
 
     if (entry.type === "growth") {
       setGrowthDate(entry.date);
@@ -190,6 +189,16 @@ export default function JournalPage() {
   };
 
   const resetUpload = () => {
+    // Clear upload state without deleting from IndexedDB
+    // (the saved entry/plant still references this image via "upload:<id>")
+    if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
+    setUploadedImageId(null);
+    setUploadedImageUrl(null);
+    setUploadError(null);
+  };
+
+  const removePlantUploadedImage = () => {
+    // User explicitly removed the photo - delete from IndexedDB too
     if (uploadedImageId) {
       deleteUploadedImage(uploadedImageId);
       if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
@@ -238,7 +247,7 @@ export default function JournalPage() {
           plantId: selectedPlantId,
           plantName: plant?.name ?? existing.plantName,
           note: note.trim(),
-          date: new Date().toISOString(),
+          date: new Date(`${growthDate}T12:00:00`).toISOString(),
         };
         if (uploadedImageId) {
           updated.photoUrl = `upload:${uploadedImageId}`;
@@ -279,7 +288,7 @@ export default function JournalPage() {
           plantId: selectedPlantId,
           plantName: plant?.name ?? "Unknown",
           note: note.trim(),
-          date: new Date().toISOString(),
+          date: new Date(`${growthDate}T12:00:00`).toISOString(),
           photoUrl: uploadedImageId ? `upload:${uploadedImageId}` : undefined,
         };
         await addJournalEntry(entry);
@@ -332,8 +341,14 @@ export default function JournalPage() {
   const closeForm = () => {
     setOpen(false);
     setEditingEntry(null);
+    setEntryType("journal");
     setNote("");
     setSelectedPlantId("");
+    setGrowthDate(new Date().toISOString().split("T")[0]);
+    setHeight(0);
+    setHeightUnit("cm");
+    setLeafCount(0);
+    setHarvestYield("");
     resetUpload();
   };
 
@@ -398,16 +413,20 @@ export default function JournalPage() {
                   className="group relative"
                 >
                   {entry.type === "journal" ? (
-                    <JournalEntryCard
+                    <TimelineEntryCard
+                      type="journal"
                       entry={
                         journalEntries.find((e) => e.id === entry.id)!
                       }
-                      showType
+                      plant={plant}
+                      index={i}
                     />
                   ) : (
-                    <GrowthEntryCard
+                    <TimelineEntryCard
+                      type="growth"
                       entry={progressEntries.find((e) => e.id === entry.id)!}
                       plant={plant}
+                      index={i}
                     />
                   )}
                   <div className="absolute right-3 top-3 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -451,29 +470,32 @@ export default function JournalPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Plant Select */}
-            <Select value={selectedPlantId} onValueChange={setSelectedPlantId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a plant" />
-              </SelectTrigger>
-              <SelectContent>
-                {plants.map((plant) => (
-                  <SelectItem key={plant.id} value={plant.id}>
-                    {plant.emoji} {plant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                Plant
+              </label>
+              <Select value={selectedPlantId} onValueChange={setSelectedPlantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a plant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plants.map((plant) => (
+                    <SelectItem key={plant.id} value={plant.id}>
+                      {plant.emoji} {plant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            {/* Date (growth only) */}
-            {entryType === "growth" && (
+            <div>
               <Input
                 label="Date"
                 type="date"
                 value={growthDate}
                 onChange={(e) => setGrowthDate(e.target.value)}
               />
-            )}
+            </div>
 
             {/* Height & Leaf Count (growth only) */}
             {entryType === "growth" && (
@@ -612,7 +634,7 @@ export default function JournalPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={resetUpload}
+                    onClick={removePlantUploadedImage}
                     className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110"
                   >
                     <X size={10} />
@@ -666,83 +688,6 @@ export default function JournalPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-// --- Growth Entry Card ---
-
-function GrowthEntryCard({
-  entry,
-  plant,
-}: {
-  entry: ProgressEntry;
-  plant?: { emoji: string; name: string };
-}) {
-  return (
-    <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-lg">
-          <TrendingUp size={18} className="text-emerald-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-semibold text-emerald-400">
-                Growth Log
-              </span>
-              {plant && (
-                <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-on-surface-variant/70 truncate max-w-[120px]">
-                  {plant.emoji} {entry.plantName}
-                </span>
-              )}
-            </div>
-            <span className="shrink-0 text-[10px] text-on-surface-variant/50">
-              {formatDate(new Date(entry.date))}
-            </span>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-3">
-            {entry.height > 0 && (
-              <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                <Ruler size={12} className="text-emerald-400/70" />
-                <span>
-                  {entry.height}
-                  {entry.heightUnit === "cm" ? " cm" : " in"}
-                </span>
-              </div>
-            )}
-            {entry.leafCount > 0 && (
-              <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                <Leaf size={12} className="text-emerald-400/70" />
-                <span>{entry.leafCount} leaves</span>
-              </div>
-            )}
-            {entry.harvestYield && (
-              <div className="flex items-center gap-1 text-xs text-on-surface-variant/80">
-                <Apple size={12} className="text-amber-400/70" />
-                <span>{entry.harvestYield}</span>
-              </div>
-            )}
-          </div>
-
-          {entry.notes && (
-            <p className="mt-1.5 text-[10px] text-on-surface-variant/70 leading-relaxed line-clamp-2">
-              {entry.notes}
-            </p>
-          )}
-
-          {entry.photoUrl && (
-            <div className="relative mt-2 h-20 w-20 overflow-hidden rounded-2xl bg-surface-container-high">
-              <SafeImage
-                src={entry.photoUrl}
-                alt="Entry photo"
-                className="h-full w-full object-cover"
-              />
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

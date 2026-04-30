@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import {
   Search,
   Sprout,
@@ -21,9 +21,7 @@ import {
   Image,
   LayoutGrid,
   List,
-  Camera,
   Sparkles,
-  Check,
 } from "lucide-react";
 import {
   Input,
@@ -53,15 +51,15 @@ import {
   addActionItem,
 } from "@/lib/db";
 import { generateId, formatDateShort, formatDate } from "@/lib/utils";
-import { IdentificationManager } from "@/lib/identification-manager";
 import nextDynamic from "next/dynamic";
 import { PWAInstallPrompt } from "@/components/layout/pwa-install-prompt";
 import { SafeImage } from "@/components/ui/safe-image";
 
-const CameraView = nextDynamic(
-  () => import("@/components/lab/camera-view").then((m) => m.CameraView),
+const IdentifyPlantDialog = nextDynamic(
+  () => import("@/components/lab/identify-plant-dialog").then((m) => m.IdentifyPlantDialog),
   { ssr: false }
 );
+import type { IdentifyResult } from "@/components/lab/identify-plant-dialog";
 import { usePageTitle } from "@/hooks/use-page-title";
 import type { CareEvent, Plant, JournalEntry, ActionItem } from "@/lib/db";
 
@@ -120,16 +118,8 @@ export default function HomePage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Scan & Identify state
-  const [scanImageData, setScanImageData] = useState<string | null>(null);
-  const [scanImageFile, setScanImageFile] = useState<File | null>(null);
-  const [showScanCamera, setShowScanCamera] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState<{ step: number; message: string }>({ step: 0, message: "" });
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [scanComplete, setScanComplete] = useState(false);
-  const scanFileInputRef = useRef<HTMLInputElement>(null);
-  const createdTaskIdsRef = useRef<string[]>([]);
+  // Identify Plants dialog
+  const [showIdentifyDialog, setShowIdentifyDialog] = useState(false);
   const pendingCareTasksRef = useRef<ActionItem[]>([]);
 
   // Thumbnail cache for plant images
@@ -271,22 +261,13 @@ export default function HomePage() {
       locationId: "none",
       tags: [],
     });
-    if (uploadedImageId) {
-      deleteUploadedImage(uploadedImageId);
-      if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
-    }
+    // Just clear upload state — don't delete from IndexedDB
+    // (the saved plant still references this image via "upload:<id>")
+    if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
     setUploadedImageId(null);
     setUploadedImageUrl(null);
     setUploadError(null);
-    // Reset scan state
-    setScanImageData(null);
-    setScanImageFile(null);
-    setShowScanCamera(false);
-    setIsScanning(false);
-    setScanProgress({ step: 0, message: "" });
-    setScanError(null);
-    setScanComplete(false);
-    createdTaskIdsRef.current = [];
+    pendingCareTasksRef.current = [];
   };
 
   const openAddForm = () => {
@@ -370,6 +351,11 @@ export default function HomePage() {
 
   const handleDeletePlant = async (id: string) => {
     const plant = plants.find((p) => p.id === id);
+    const plantName = plant?.name ?? "this plant";
+    if (!window.confirm(`Delete ${plantName}? This will remove the plant and cannot be undone.`)) {
+      return;
+    }
+
     if (plant?.imageUrl && plant.imageUrl.startsWith("upload:")) {
       const imageId = plant.imageUrl.slice(7);
       await deleteUploadedImage(imageId);
@@ -385,113 +371,30 @@ export default function HomePage() {
     }
   };
 
-  // --- Scan & Identify handlers ---
-  const handleScanCapture = (data: string, file?: File) => {
-    setScanImageData(data);
-    setScanImageFile(file ?? null);
-    setShowScanCamera(false);
-    setScanError(null);
-  };
-
-  const handleScanFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScanError(null);
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/bmp", "image/tiff"];
-    if (!allowedTypes.includes(file.type)) {
-      setScanError("Unsupported format. Allowed: JPEG, PNG, GIF, WebP, AVIF, BMP, TIFF");
-      if (scanFileInputRef.current) scanFileInputRef.current.value = "";
-      return;
+  // --- Identify Plants callback ---
+  const handleIdentifyComplete = useCallback((result: IdentifyResult) => {
+    setShowIdentifyDialog(false);
+    // Pre-fill the plant form with identification results
+    setPlantForm((prev) => ({
+      ...prev,
+      name: result.name,
+      scientificName: result.scientificName,
+      description: result.description,
+      imageUrl: result.imageUrl,
+    }));
+    // Store care tasks for when the plant is saved
+    pendingCareTasksRef.current = result.careTasks;
+    // If an image was uploaded, track it
+    if (result.imageUrl && result.imageUrl.startsWith("upload:")) {
+      const imageId = result.imageUrl.slice(7);
+      setUploadedImageId(imageId);
+      getImageUrl(imageId).then((url) => {
+        if (url) setUploadedImageUrl(url);
+      });
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setScanError("Image too large. Maximum size is 10MB.");
-      if (scanFileInputRef.current) scanFileInputRef.current.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScanImageData(reader.result as string);
-      setScanImageFile(file);
-    };
-    reader.readAsDataURL(file);
-    if (scanFileInputRef.current) scanFileInputRef.current.value = "";
-  };
-
-  const handleIdentify = async () => {
-    if (!scanImageFile && !scanImageData) return;
-    setScanError(null);
-    setIsScanning(true);
-    setScanProgress({ step: 1, message: "Step 1: Identifying species..." });
-
-    try {
-      let fileToUse = scanImageFile;
-      if (!fileToUse && scanImageData) {
-        const resp = await fetch(scanImageData);
-        const blob = await resp.blob();
-        fileToUse = new File([blob], "capture.webp", { type: "image/webp" });
-      }
-      if (!fileToUse) throw new Error("No image available");
-
-      const result = await IdentificationManager.identify(fileToUse, (p) => setScanProgress(p));
-
-      // Fill the form with identification results
-      const sciName = result.species.scientificName;
-      const careLines: string[] = [];
-      if (result.sunlightNeeds.length > 0) {
-        careLines.push(`☀️ Light: ${result.sunlightNeeds.join(", ")}`);
-      }
-      for (const cs of result.careSchedules) {
-        const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;
-        careLines.push(`${cs.label}: ${freq}`);
-      }
-      if (result.fertilizers.length > 0) {
-        careLines.push(`🧪 Recommended fertilizer: ${result.fertilizers.map((f) => f.name).join(", ")}`);
-      }
-      const description = careLines.length > 0
-        ? careLines.join("\n")
-        : "";
-
-      setPlantForm((prev) => ({
-        ...prev,
-        name: result.species.name,
-        scientificName: sciName,
-        description,
-        imageUrl: result.imageDataUrl || prev.imageUrl,
-      }));
-
-      // Create care schedule ActionItems (stored in ref to apply on save)
-      const today = new Date().toISOString().split("T")[0];
-      const tasks: ActionItem[] = [];
-      for (const cs of result.careSchedules) {
-        tasks.push({
-          id: generateId(),
-          userId: currentUserId ?? "",
-          title: `${cs.label} — ${result.species.name}`,
-          source: "system",
-          type: cs.type,
-          date: today,
-          time: "",
-          completed: false,
-          plantIds: [],
-          plantNames: [result.species.name],
-          note: cs.note || `Automated schedule from identification`,
-          repeat: "everyXdays",
-          repeatConfig: { intervalDays: cs.frequencyDays },
-          snoozedUntil: null,
-          category: cs.type,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      // Store tasks temporarily to pass to save handler
-      pendingCareTasksRef.current = tasks;
-
-      setScanComplete(true);
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Identification failed. Try again.");
-    } finally {
-      setIsScanning(false);
-    }
-  };
+    // Open the add plant form
+    openAddForm();
+  }, []);
 
   const toggleTagInForm = (tagId: string) => {
     setPlantForm((prev) => ({
@@ -566,6 +469,7 @@ export default function HomePage() {
               {filteredPlants.length} of {plants.length} plants
             </p>
           </div>
+          <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
           <Button onClick={openAddForm} size="sm" className="shrink-0">
             <Plus size={14} />
             <span className="hidden sm:inline">Add Plant</span>
@@ -804,133 +708,6 @@ export default function HomePage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* --- Scan & Identify Section (New plants only) --- */}
-            {!editingPlant && (
-              <div className="rounded-2xl border border-dashed border-[var(--theme-primary)]/30 bg-[var(--theme-primary)]/5 p-4">
-                <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--theme-primary)]">
-                  <Camera size={14} />
-                  Scan & Identify
-                </label>
-                <p className="mb-3 text-[10px] text-on-surface-variant/60">
-                  Take a photo or upload an image to auto-fill plant details.
-                </p>
-
-                {/* Scan preview */}
-                {scanImageData ? (
-                  <div className="relative mb-3 overflow-hidden rounded-xl bg-surface-container-high">
-                    <SafeImage
-                      src={scanImageData}
-                      alt="Scan preview"
-                      className="w-full max-h-[25vh] min-h-[120px] object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setScanImageData(null);
-                        setScanImageFile(null);
-                        setScanComplete(false);
-                        setScanError(null);
-                        createdTaskIdsRef.current = [];
-                        pendingCareTasksRef.current = [];
-                      }}
-                      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mb-3 flex gap-2">
-                    {/* Camera button */}
-                    <button
-                      type="button"
-                      onClick={() => setShowScanCamera(true)}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-outline/30 bg-surface-container/30 px-3 py-3 text-xs font-semibold text-on-surface-variant transition-colors hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
-                    >
-                      <Camera size={16} />
-                      Camera
-                    </button>
-                    {/* Upload button */}
-                    <button
-                      type="button"
-                      onClick={() => scanFileInputRef.current?.click()}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-outline/30 bg-surface-container/30 px-3 py-3 text-xs font-semibold text-on-surface-variant transition-colors hover:bg-surface-container/60 hover:border-[var(--theme-primary)]/30"
-                    >
-                      <Upload size={16} />
-                      Upload Photo
-                    </button>
-                    <input
-                      ref={scanFileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp,image/avif,image/bmp,image/tiff"
-                      className="hidden"
-                      onChange={handleScanFileUpload}
-                      aria-label="Upload plant scan image"
-                    />
-                  </div>
-                )}
-
-                {/* Identify Button */}
-                {scanImageData && !scanComplete && !isScanning && (
-                  <button
-                    type="button"
-                    onClick={handleIdentify}
-                    disabled={isScanning}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-4 py-2.5 text-xs font-bold text-[var(--theme-onPrimary)] transition-all hover:opacity-90 disabled:opacity-50"
-                  >
-                    <Sparkles size={14} />
-                    Identify Plant
-                  </button>
-                )}
-
-                {/* Scanning progress */}
-                {isScanning && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-[var(--theme-primary)]">
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      {scanProgress.message}
-                    </div>
-                    {/* Progress bar */}
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">
-                      <motion.div
-                        initial={{ width: "0%" }}
-                        animate={{ width: `${(scanProgress.step / 4) * 100}%` }}
-                        className="h-full rounded-full bg-[var(--theme-primary)]"
-                        transition={{ duration: 0.4 }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Scan complete */}
-                {scanComplete && (
-                  <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2">
-                    <Check size={14} className="shrink-0 text-emerald-400" />
-                    <span className="text-[11px] text-emerald-300">
-                      Plant identified! Details filled below. Save to create care schedule tasks.
-                    </span>
-                  </div>
-                )}
-
-                {/* Scan error */}
-                {scanError && (
-                  <p className="mt-2 text-[11px] text-red-400">{scanError}</p>
-                )}
-              </div>
-            )}
-
-            {/* Camera Dialog for scan */}
-            <Dialog open={showScanCamera} onOpenChange={setShowScanCamera}>
-              <DialogContent className="max-h-[80vh] overflow-hidden">
-                <DialogHeader>
-                  <DialogTitle>Take a Photo</DialogTitle>
-                </DialogHeader>
-                <CameraView onCapture={handleScanCapture} />
-              </DialogContent>
-            </Dialog>
-
             {/* Emoji Picker */}
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
@@ -1167,6 +944,13 @@ export default function HomePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Identify Plants Dialog */}
+      <IdentifyPlantDialog
+        open={showIdentifyDialog}
+        onOpenChange={setShowIdentifyDialog}
+        onComplete={handleIdentifyComplete}
+      />
     </div>
   );
 }
@@ -1352,4 +1136,17 @@ function CareIcon({ type }: { type: CareEvent["type"] }) {
     default:
       return <Sprout {...props} className="shrink-0 text-on-surface-variant" />;
   }
+}
+
+function IdentifyPlantButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--theme-primary)]/10 px-3 py-1.5 text-[10px] font-semibold text-[var(--theme-primary)] transition-all hover:bg-[var(--theme-primary)]/20 mr-1"
+    >
+      <Sparkles size={12} />
+      <span className="hidden sm:inline">Identify Plants</span>
+      <span className="sm:hidden">Scan</span>
+    </button>
+  );
 }

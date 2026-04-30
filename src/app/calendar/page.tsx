@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
@@ -8,6 +8,8 @@ import {
 import {
   Button, Card, CardContent,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Input,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import { addActionItem, updateActionItem, deleteActionItem } from "@/lib/db";
@@ -22,8 +24,10 @@ export default function CalendarPage() {
 
   const plants = useAppStore((s) => s.plants);
   const actionItems = useAppStore((s) => s.actionItems);
+  const currentUserId = useAppStore((s) => s.currentUserId);
 
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
+  const todayIso = useMemo(() => today.toISOString().split("T")[0], [today]);
   const [viewDate, setViewDate] = useState(today);
   const [showForm, setShowForm] = useState(false);
   const [editingAction, setEditingAction] = useState<ActionItem | null>(null);
@@ -92,8 +96,14 @@ export default function CalendarPage() {
     setShowForm(false);
   };
 
-  const openAddForm = () => {
+  const openAddForm = (date = todayIso) => {
     setEditingAction(null);
+    setFormTitle("");
+    setFormType("water");
+    setFormDate(date);
+    setFormTime("");
+    setFormNote("");
+    setFormPlantId("");
     setShowForm(true);
   };
 
@@ -117,21 +127,14 @@ export default function CalendarPage() {
       setFormTime(editingAction.time || "");
       setFormNote(editingAction.note || "");
       setFormPlantId((editingAction.plantIds?.[0]) || "");
-    } else {
-      setFormTitle("");
-      setFormType("water");
-      setFormDate(today.toISOString().split("T")[0]);
-      setFormTime("");
-      setFormNote("");
-      setFormPlantId("");
     }
-  }, [editingAction, today]);
+  }, [editingAction]);
 
   const saveAction = async () => {
     if (!formTitle.trim()) return;
     const action: ActionItem = {
       id: editingAction?.id || generateId(),
-      userId: editingAction?.userId || "",
+      userId: editingAction?.userId || currentUserId || "",
       title: formTitle.trim(),
       source: editingAction?.source || ("manual" as const),
       type: formType as ActionItem["type"],
@@ -210,8 +213,7 @@ export default function CalendarPage() {
                     key={`d-${day}`}
                     onClick={() => {
                       const ds = new Date(year, month, day).toISOString().split("T")[0];
-                      setFormDate(ds);
-                      openAddForm();
+                      openAddForm(ds);
                     }}
                     className={cn(
                       "relative flex flex-col items-center justify-start rounded-lg p-1.5 min-h-[48px] text-xs transition-colors",
@@ -244,7 +246,7 @@ export default function CalendarPage() {
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-on-surface">Actions</h2>
-              <Button onClick={openAddForm} size="sm">
+              <Button onClick={() => openAddForm()} size="sm">
                 <Plus size={14} className="mr-1" /> Add
               </Button>
             </div>
@@ -351,70 +353,69 @@ export default function CalendarPage() {
               {editingAction ? "Update this care action" : "Add a new care action to your schedule"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Action Name</label>
-              <input
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="e.g. Water the roses"
-                className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/55 outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                autoFocus
-              />
-            </div>
+          <div className="space-y-4">
+            <Input
+              label="Action Name"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              placeholder="e.g. Water the roses"
+              autoFocus
+            />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Type</label>
-                <select
-                  value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface outline-none"
-                >
-                  {["water", "fertilize", "prune", "repot", "harvesting", "clean", "mist", "general"].map((t) => (
-                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")}</option>
-                  ))}
-                </select>
+                <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                  Type
+                </label>
+                <Select value={formType} onValueChange={setFormType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["water", "fertilize", "prune", "repot", "harvesting", "clean", "mist", "general"].map((t) => (
+                      <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Date</label>
-                <input
-                  type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Time (optional)</label>
-              <input
-                type="time"
-                value={formTime}
-                onChange={(e) => setFormTime(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface outline-none"
+              <Input
+                label="Date"
+                type="date"
+                value={formDate}
+                onChange={(e) => setFormDate(e.target.value)}
               />
             </div>
+            <Input
+              label="Time (optional)"
+              type="time"
+              value={formTime}
+              onChange={(e) => setFormTime(e.target.value)}
+            />
             <div>
-              <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Related Plant (optional)</label>
-              <select
-                value={formPlantId}
-                onChange={(e) => setFormPlantId(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface outline-none"
-              >
-                <option value="">None</option>
-                {plants.map((p) => (
-                  <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
-                ))}
-              </select>
+              <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                Related Plant (optional)
+              </label>
+              <Select value={formPlantId} onValueChange={setFormPlantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {plants.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.emoji} {p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="text-xs font-medium text-on-surface-variant/70 mb-1 block">Note (optional)</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                Note (optional)
+              </label>
               <textarea
                 value={formNote}
                 onChange={(e) => setFormNote(e.target.value)}
                 placeholder="Add any notes..."
                 rows={2}
-                className="w-full px-3 py-2 text-sm bg-surface-container-high rounded-xl border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/55 outline-none resize-none focus:ring-1 focus:ring-[var(--theme-primary)]"
+                className="w-full rounded-2xl border border-outline/30 bg-surface-container/60 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 backdrop-blur-sm transition-all duration-200 focus:border-[var(--theme-primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]/20 resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
