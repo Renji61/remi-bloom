@@ -2,6 +2,8 @@ import {
   seedMockData,
   seedCareEvents,
   seedInventory,
+  seedDefaultTagsForUser,
+  seedDefaultLocationsForUser,
   getAllTags,
   getSetting,
   getPlantsForUser,
@@ -145,13 +147,17 @@ export async function loadUserData(userId: string) {
 // Fallback: Load from IndexedDB
 // ──────────────────────────────────────────────
 
-async function loadFromIndexedDB(userId: string, store: any) {
+export async function loadFromIndexedDB(userId: string, store: any) {
   // Seed mock data if user has no data yet
   const existingPlants = await getPlantsForUser(userId);
   if (existingPlants.length === 0) {
     await seedMockData(mockPlants, mockLocations, mockTags, userId);
     await seedCareEvents(mockCareEvents, userId);
     await seedInventory(mockInventoryItems, userId);
+  } else {
+    // Seed default tags/locations even if user already has plants
+    await seedDefaultTagsForUser(mockTags, userId);
+    await seedDefaultLocationsForUser(mockLocations, userId);
   }
 
   const [

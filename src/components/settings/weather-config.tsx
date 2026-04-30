@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Cloud, Key, Check, Loader2, MapPin } from "lucide-react";
+import { Cloud, Key, Check, Loader2, MapPin, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, Input, Button } from "@/components/ui";
 import { CitySearch, type CityResult } from "./city-search";
 import { getUserSetting, setUserSetting } from "@/lib/db";
@@ -16,6 +16,7 @@ export function WeatherConfig() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -95,8 +96,18 @@ export function WeatherConfig() {
           </div>
         </div>
 
+        {/* Toggle show/hide API key */}
+        <button
+          onClick={() => setShowKey(!showKey)}
+          className="flex items-center gap-1.5 text-xs text-on-surface-variant/60 hover:text-on-surface-variant transition-colors"
+        >
+          {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+          {showKey ? "Hide API Key" : "Show API Key"}
+        </button>
+
         <Input
           label="API Key"
+          type={showKey ? "text" : "password"}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="Enter your OpenWeather API key..."

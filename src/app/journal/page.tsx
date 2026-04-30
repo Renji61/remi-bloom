@@ -181,7 +181,7 @@ export default function JournalPage() {
     setGrowthDate(entry.date?.split("T")[0] || new Date().toISOString().split("T")[0]);
 
     if (entry.type === "growth") {
-      setGrowthDate(entry.date);
+      setGrowthDate(entry.date?.split("T")[0] || new Date().toISOString().split("T")[0]);
       setHeight(entry.height ?? 0);
       setHeightUnit(entry.heightUnit ?? "cm");
       setLeafCount(entry.leafCount ?? 0);

@@ -652,6 +652,34 @@ export async function seedMockData(
   }
 }
 
+/**
+ * Seed default tags for a specific user if they have none.
+ */
+export async function seedDefaultTagsForUser(
+  tags: Omit<Tag, "userId">[],
+  userId: string
+) {
+  const existingTags = await db.tags.where("userId").equals(userId).toArray();
+  if (existingTags.length === 0 && tags.length > 0) {
+    const tagsWithUser = tags.map((t) => ({ ...t, userId }));
+    await db.tags.bulkAdd(tagsWithUser);
+  }
+}
+
+/**
+ * Seed default locations for a specific user if they have none.
+ */
+export async function seedDefaultLocationsForUser(
+  locations: Omit<PlantLocation, "userId">[],
+  userId: string
+) {
+  const existingLocations = await db.plantLocations.where("userId").equals(userId).toArray();
+  if (existingLocations.length === 0 && locations.length > 0) {
+    const locationsWithUser = locations.map((l) => ({ ...l, userId }));
+    await db.plantLocations.bulkAdd(locationsWithUser);
+  }
+}
+
 export async function seedCareEvents(events: (Omit<CareEvent, "userId">)[], userId?: string) {
   const count = await db.careEvents.count();
   if (count === 0 && events.length > 0) {
@@ -1034,12 +1062,14 @@ export async function deleteUploadedImage(imageId: string): Promise<void> {
 // --- Action Engine CRUD ---
 
 export async function addActionItem(item: ActionItem) {
+  if (!item.userId) throw new Error("Cannot save action: user ID is missing");
   const result = await db.actionItems.add(item);
   await enqueueAndReplay(item.userId, "actionItem", "create", item, item.id);
   return result;
 }
 
 export async function updateActionItem(item: ActionItem) {
+  if (!item.userId) throw new Error("Cannot save action: user ID is missing");
   const result = await db.actionItems.put(item);
   await enqueueAndReplay(item.userId, "actionItem", "update", item, item.id);
   return result;

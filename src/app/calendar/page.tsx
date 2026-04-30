@@ -134,11 +134,19 @@ export default function CalendarPage() {
 
   const saveAction = async () => {
     if (!formTitle.trim()) return;
+    if (!currentUserId) {
+      setSaveError("You must be logged in to save actions.");
+      return;
+    }
+    if (!formDate) {
+      setSaveError("Please select a date before saving.");
+      return;
+    }
     setSaveError(null);
     try {
       const action: ActionItem = {
         id: editingAction?.id || generateId(),
-        userId: editingAction?.userId || currentUserId || "",
+        userId: editingAction?.userId || currentUserId,
         title: formTitle.trim(),
         source: editingAction?.source || ("manual" as const),
         type: formType as ActionItem["type"],

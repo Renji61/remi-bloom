@@ -26,6 +26,21 @@ import {
 import { db, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
+import {
+  getPlantsForUser,
+  getLocationsForUser,
+  getTagsForUser,
+  getInventoryForUser,
+  getRemindersForUser,
+  getTodosForUser,
+  getProgressEntriesForUser,
+  getActionItemsForUser,
+  getJournalEntriesForUser,
+  getGardenCellsForUser,
+  getSharedGardensForUser,
+  getCareEventsForUser,
+  getSetting,
+} from "@/lib/db";
 
 export function DataSettings() {
   const currentUserId = useAppStore((s) => s.currentUserId);
@@ -176,9 +191,38 @@ export function DataSettings() {
         }
       }
 
-      // Reload data into store
+      // Also push imported data to server API if available
+      try {
+        await fetch("/api/data", { method: "DELETE" });
+        const syncPayload = {
+          plants: assignUser(data.plants),
+          careEvents: assignUser(data.careEvents),
+          locations: assignUser(data.locations),
+          tags: data.tags,
+          inventory: assignUser(data.inventoryItems),
+          journals: assignUser(data.journalEntries),
+          gardenCells: assignUser(data.gardenCells),
+          reminders: assignUser(data.reminders),
+          todos: assignUser(data.todos),
+          progress: assignUser(data.progressEntries),
+          sharedGardens: assignUser(data.sharedGardens),
+          actionItems: assignUser(data.actionItems),
+          settings: {},
+        };
+        await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncPayload),
+        });
+      } catch {
+        // Server may not be available; data is in IndexedDB
+      }
+
+      // Force load from IndexedDB (skip API to use imported data)
+      const { loadFromIndexedDB } = await import("@/lib/load-user-data");
+      const store = useAppStore.getState();
       if (currentUserId) {
-        await loadUserData(currentUserId);
+        await loadFromIndexedDB(currentUserId, store);
       }
 
       setStatus({
@@ -225,9 +269,17 @@ export function DataSettings() {
     try {
       await clearCurrentUserData();
 
+      // Also clear server-side data
+      try {
+        await fetch("/api/data", { method: "DELETE" });
+      } catch {
+        // Server may not be available; that's ok
+      }
+
       // Reset store state for this user's data
       setPlants([]);
       setLocations([]);
+      setTags([]);
       setCareEvents([]);
       setJournalEntries([]);
       setInventoryItems([]);
@@ -237,8 +289,10 @@ export function DataSettings() {
       useAppStore.getState().setActionItems([]);
       useAppStore.getState().setGardenCells([]);
 
-      // Re-seed fresh data for this user
-      await loadUserData(currentUserId);
+      // Re-seed fresh data from IndexedDB (skip API to avoid old server data)
+      const { loadFromIndexedDB } = await import("@/lib/load-user-data");
+      const store = useAppStore.getState();
+      await loadFromIndexedDB(currentUserId, store);
 
       setShowClearDialog(false);
       setClearConfirmText("");

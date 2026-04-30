@@ -413,7 +413,7 @@ export default function InventoryPage() {
                             )}
                             {(item.price ?? 0) > 0 && (
                               <span className="text-[11px] font-semibold tabular-nums text-emerald-400">
-                                {formatPrice(item.price)}
+                                {formatPrice(item.price) || `$${(item.price ?? 0).toFixed(2)}`}
                               </span>
                             )}
                           </div>
