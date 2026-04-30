@@ -37,6 +37,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=deps /app/node_modules ./node_modules
+# Ensure `postgres` runtime dependency is present (may be missed by Next.js standalone trace)
+RUN if [ ! -d "node_modules/postgres" ]; then \
+      npm install postgres@^3.4.0 --no-save 2>&1; \
+    fi
 COPY --from=builder /app/src/db/migrations ./src/db/migrations
 COPY scripts/start-server.mjs ./scripts/start-server.mjs
 
