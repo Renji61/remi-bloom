@@ -36,7 +36,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=deps /app/node_modules/postgres ./node_modules/postgres
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/src/db/migrations ./src/db/migrations
 COPY scripts/start-server.mjs ./scripts/start-server.mjs
 
