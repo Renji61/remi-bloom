@@ -106,6 +106,9 @@ function hydrateStore(payload: SyncPayload) {
   if (s.faviconUrl !== undefined) {
     store.setFaviconUrl(s.faviconUrl);
   }
+  if (s.greenhouseName) {
+    store.setGreenhouseName(s.greenhouseName);
+  }
   store.setNotificationEngine((s.notificationEngine as any) || "disabled");
   store.setNotificationEngineUrl(s.notificationUrl ?? "");
   store.setNotificationEngineToken(s.notificationToken ?? "");
@@ -214,6 +217,7 @@ export async function loadFromIndexedDB(userId: string, store: any) {
     currencyCode,
     currencySymbol,
     faviconUrl,
+    greenhouseName,
   ] = await Promise.all([
     getSetting(`${prefix}notificationEngine`),
     getSetting(`${prefix}notificationUrl`),
@@ -225,6 +229,7 @@ export async function loadFromIndexedDB(userId: string, store: any) {
     getSetting(`${prefix}currencyCode`),
     getSetting(`${prefix}currencySymbol`),
     getSetting(`${prefix}faviconUrl`),
+    getSetting(`${prefix}greenhouseName`),
   ]);
 
   if (themeMode && ["dark", "light", "system"].includes(themeMode)) {
@@ -236,6 +241,7 @@ export async function loadFromIndexedDB(userId: string, store: any) {
   if (currencyCode) store.setCurrencyCode(currencyCode);
   if (currencySymbol) store.setCurrencySymbol(currencySymbol);
   if (faviconUrl !== undefined) store.setFaviconUrl(faviconUrl);
+  if (greenhouseName) store.setGreenhouseName(greenhouseName);
   store.setNotificationEngine((engineVal as any) || "disabled");
   store.setNotificationEngineUrl(urlVal ?? "");
   store.setNotificationEngineToken(tokenVal ?? "");

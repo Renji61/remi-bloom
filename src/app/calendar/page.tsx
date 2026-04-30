@@ -98,6 +98,7 @@ export default function CalendarPage() {
   };
 
   const openAddForm = (date = todayIso) => {
+    setSaveError(null);
     setEditingAction(null);
     setFormTitle("");
     setFormType("water");
@@ -109,6 +110,7 @@ export default function CalendarPage() {
   };
 
   const openEditForm = (action: ActionItem) => {
+    setSaveError(null);
     setEditingAction(action);
     setShowForm(true);
   };
@@ -125,7 +127,7 @@ export default function CalendarPage() {
     if (editingAction) {
       setFormTitle(editingAction.title);
       setFormType(editingAction.type || "water");
-      setFormDate(editingAction.date?.split("T")[0] || "");
+      setFormDate(editingAction.date?.substring(0, 10) || "");
       setFormTime(editingAction.time || "");
       setFormNote(editingAction.note || "");
       setFormPlantId((editingAction.plantIds?.[0]) || "");
@@ -171,8 +173,9 @@ export default function CalendarPage() {
       }
       resetForm();
     } catch (error) {
-      console.error("Failed to save action:", error);
-      setSaveError("An unexpected error occurred. Please try again.");
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Failed to save action:", msg, error);
+      setSaveError(`An unexpected error occurred. Please try again.`);
     }
   };
 

@@ -12,6 +12,8 @@ import {
   Info,
   Trash2,
   AlertTriangle,
+  Sprout,
+  RefreshCw,
 } from "lucide-react";
 import {
   Button,
@@ -24,6 +26,11 @@ import {
   Input,
 } from "@/components/ui";
 import { db, setUserSetting } from "@/lib/db";
+import {
+  forceSeedTags,
+  forceSeedLocations,
+  forceSeedPlants,
+} from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
 import {
@@ -41,10 +48,15 @@ import {
   getCareEventsForUser,
   getSetting,
 } from "@/lib/db";
+import {
+  mockTags,
+  mockLocations,
+  mockPlants,
+} from "@/data/plants";
 
 export function DataSettings() {
   const currentUserId = useAppStore((s) => s.currentUserId);
-  const [tab, setTab] = useState<"export" | "import">("export");
+  const [tab, setTab] = useState<"export" | "import" | "seed">("export");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState<{
@@ -52,6 +64,9 @@ export function DataSettings() {
     message: string;
   }>({ type: null, message: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Seeding state
+  const [seeding, setSeeding] = useState<string | null>(null); // 'tags' | 'locations' | 'plants' | null
 
   const setPlants = useAppStore((s) => s.setPlants);
   const setLocations = useAppStore((s) => s.setLocations);
@@ -261,6 +276,61 @@ export function DataSettings() {
     ]);
   }
 
+  // ── Seeding handlers ──
+
+  const handleSeedTags = async () => {
+    if (!currentUserId) return;
+    setSeeding("tags");
+    setStatus({ type: null, message: "" });
+    try {
+      await forceSeedTags(mockTags, currentUserId);
+      const { loadFromIndexedDB } = await import("@/lib/load-user-data");
+      const store = useAppStore.getState();
+      await loadFromIndexedDB(currentUserId, store);
+      setStatus({ type: "success", message: `Seeded ${mockTags.length} default tags.` });
+    } catch (err) {
+      setStatus({ type: "error", message: `Failed: ${err instanceof Error ? err.message : "Unknown error"}` });
+    } finally {
+      setSeeding(null);
+    }
+  };
+
+  const handleSeedLocations = async () => {
+    if (!currentUserId) return;
+    setSeeding("locations");
+    setStatus({ type: null, message: "" });
+    try {
+      await forceSeedLocations(mockLocations, currentUserId);
+      const { loadFromIndexedDB } = await import("@/lib/load-user-data");
+      const store = useAppStore.getState();
+      await loadFromIndexedDB(currentUserId, store);
+      setStatus({ type: "success", message: `Seeded ${mockLocations.length} default locations.` });
+    } catch (err) {
+      setStatus({ type: "error", message: `Failed: ${err instanceof Error ? err.message : "Unknown error"}` });
+    } finally {
+      setSeeding(null);
+    }
+  };
+
+  const handleSeedPlants = async () => {
+    if (!currentUserId) return;
+    setSeeding("plants");
+    setStatus({ type: null, message: "" });
+    try {
+      await forceSeedPlants(mockPlants, currentUserId);
+      const { loadFromIndexedDB } = await import("@/lib/load-user-data");
+      const store = useAppStore.getState();
+      await loadFromIndexedDB(currentUserId, store);
+      setStatus({ type: "success", message: `Seeded ${mockPlants.length} default plants.` });
+    } catch (err) {
+      setStatus({ type: "error", message: `Failed: ${err instanceof Error ? err.message : "Unknown error"}` });
+    } finally {
+      setSeeding(null);
+    }
+  };
+
+  // ── End seeding handlers ──
+
   const handleClearData = async () => {
     if (!currentUserId) return;
     setClearing(true);
@@ -354,6 +424,17 @@ export function DataSettings() {
         >
           <Upload size={16} />
           Import
+        </button>
+        <button
+          onClick={() => setTab("seed")}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition-all ${
+            tab === "seed"
+              ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
+              : "bg-surface-container/50 text-on-surface-variant hover:bg-surface-container-high"
+          }`}
+        >
+          <Sprout size={16} />
+          Seed
         </button>
       </div>
 
@@ -451,6 +532,82 @@ export function DataSettings() {
                     </>
                   )}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Seed Panel */}
+      {tab === "seed" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-3"
+        >
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+                  <Sprout size={28} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-on-surface">
+                    Seed Default Data
+                  </h3>
+                  <p className="mt-1 text-xs text-on-surface-variant/70 max-w-sm">
+                    Populate your account with default plants, tags, and locations.
+                    This will <span className="text-amber-400 font-semibold">replace existing data</span> for
+                    each category you seed.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  onClick={handleSeedTags}
+                  disabled={seeding !== null}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-outline/20 bg-surface-container/40 p-4 transition-all hover:bg-surface-container-high hover:border-[var(--theme-primary)]/30 disabled:opacity-50"
+                >
+                  {seeding === "tags" ? (
+                    <Loader2 size={22} className="animate-spin text-[var(--theme-primary)]" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-fuchsia-500/10 text-fuchsia-400">
+                      <span className="text-lg">#</span>
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold text-on-surface">Tags</span>
+                  <span className="text-[10px] text-on-surface-variant/50">{mockTags.length} defaults</span>
+                </button>
+                <button
+                  onClick={handleSeedLocations}
+                  disabled={seeding !== null}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-outline/20 bg-surface-container/40 p-4 transition-all hover:bg-surface-container-high hover:border-[var(--theme-primary)]/30 disabled:opacity-50"
+                >
+                  {seeding === "locations" ? (
+                    <Loader2 size={22} className="animate-spin text-[var(--theme-primary)]" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10">
+                      <span className="text-lg">📍</span>
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold text-on-surface">Locations</span>
+                  <span className="text-[10px] text-on-surface-variant/50">{mockLocations.length} defaults</span>
+                </button>
+                <button
+                  onClick={handleSeedPlants}
+                  disabled={seeding !== null}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-outline/20 bg-surface-container/40 p-4 transition-all hover:bg-surface-container-high hover:border-[var(--theme-primary)]/30 disabled:opacity-50"
+                >
+                  {seeding === "plants" ? (
+                    <Loader2 size={22} className="animate-spin text-[var(--theme-primary)]" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                      <span className="text-lg">🌱</span>
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold text-on-surface">Plants</span>
+                  <span className="text-[10px] text-on-surface-variant/50">{mockPlants.length} defaults</span>
+                </button>
               </div>
             </CardContent>
           </Card>

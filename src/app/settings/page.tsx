@@ -6,6 +6,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { Settings, Info, Cloud, DollarSign, Key } from "lucide-react";
 import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
 import { ThemePicker } from "@/components/settings/theme-picker";
+import { GreenhouseNameSettings } from "@/components/settings/greenhouse-name-settings";
 import { FaviconSettings } from "@/components/settings/favicon-settings";
 import { CurrencySettings } from "@/components/settings/currency-settings";
 import { DataSettings } from "@/components/settings/data-settings";
@@ -41,6 +42,9 @@ export default function SettingsPage() {
 
         <TabsContent value="appearance">
           <ThemePicker />
+          <div className="mt-4">
+            <GreenhouseNameSettings />
+          </div>
           <div className="mt-4">
             <FaviconSettings />
           </div>

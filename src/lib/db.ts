@@ -696,6 +696,48 @@ export async function seedInventory(items: Omit<InventoryItem, "userId">[], user
   }
 }
 
+/**
+ * Force-seed default tags for a user, overwriting any existing tags.
+ */
+export async function forceSeedTags(
+  tags: Omit<Tag, "userId">[],
+  userId: string
+) {
+  await db.tags.where("userId").equals(userId).delete();
+  if (tags.length > 0) {
+    const tagsWithUser = tags.map((t) => ({ ...t, userId }));
+    await db.tags.bulkAdd(tagsWithUser);
+  }
+}
+
+/**
+ * Force-seed default locations for a user, overwriting any existing locations.
+ */
+export async function forceSeedLocations(
+  locations: Omit<PlantLocation, "userId">[],
+  userId: string
+) {
+  await db.plantLocations.where("userId").equals(userId).delete();
+  if (locations.length > 0) {
+    const locationsWithUser = locations.map((l) => ({ ...l, userId }));
+    await db.plantLocations.bulkAdd(locationsWithUser);
+  }
+}
+
+/**
+ * Force-seed default plants for a user.
+ */
+export async function forceSeedPlants(
+  plants: Omit<Plant, "userId">[],
+  userId: string
+) {
+  await db.plants.where("userId").equals(userId).delete();
+  if (plants.length > 0) {
+    const plantsWithUser = plants.map((p) => ({ ...p, userId }));
+    await db.plants.bulkAdd(plantsWithUser);
+  }
+}
+
 // Plant CRUD
 export async function addPlant(plant: Plant) {
   const result = await db.plants.add(plant);

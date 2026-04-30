@@ -46,14 +46,16 @@ export function useFormatPrice() {
 
     return (price: number): string => {
       if (price <= 0) return "";
-      if (!code) return `$${price.toFixed(2)}`;
+      const numPrice = typeof price === "string" ? parseFloat(price) : price;
+      if (isNaN(numPrice) || numPrice <= 0) return "";
+      if (!code) return `$${numPrice.toFixed(2)}`;
       try {
-        return price.toLocaleString(locale, {
+        return numPrice.toLocaleString(locale, {
           style: "currency",
           currency: code,
         });
       } catch {
-        return `${currencySymbol || "$"}${price.toFixed(2)}`;
+        return `${currencySymbol || "$"}${numPrice.toFixed(2)}`;
       }
     };
   }, [currencyCode, currencySymbol]);

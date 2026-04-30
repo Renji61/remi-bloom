@@ -178,10 +178,10 @@ export default function JournalPage() {
     setEntryType(entry.type);
     setSelectedPlantId(entry.plantId);
     setNote(entry.note);
-    setGrowthDate(entry.date?.split("T")[0] || new Date().toISOString().split("T")[0]);
+    setGrowthDate(entry.date?.substring(0, 10) || new Date().toISOString().split("T")[0]);
 
     if (entry.type === "growth") {
-      setGrowthDate(entry.date?.split("T")[0] || new Date().toISOString().split("T")[0]);
+      setGrowthDate(entry.date?.substring(0, 10) || new Date().toISOString().split("T")[0]);
       setHeight(entry.height ?? 0);
       setHeightUnit(entry.heightUnit ?? "cm");
       setLeafCount(entry.leafCount ?? 0);

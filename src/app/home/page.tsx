@@ -75,8 +75,9 @@ const tagColors = [
 ];
 
 export default function HomePage() {
-  usePageTitle("My Greenhouse");
   const currentUserId = useAppStore((s) => s.currentUserId);
+  const greenhouseName = useAppStore((s) => s.greenhouseName);
+  usePageTitle(greenhouseName);
   const plants = useAppStore((s) => s.plants);
   const locations = useAppStore((s) => s.locations);
   const tags = useAppStore((s) => s.tags);

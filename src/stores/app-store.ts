@@ -35,6 +35,9 @@ interface AppState {
   // Favicon
   faviconUrl: string;
 
+  // Greenhouse
+  greenhouseName: string;
+
   // Connection
   connectionStatus: ConnectionStatus;
 
@@ -98,6 +101,9 @@ interface AppState {
 
   // Actions — Favicon
   setFaviconUrl: (url: string) => void;
+
+  // Actions — Greenhouse
+  setGreenhouseName: (name: string) => void;
 
   setConnectionStatus: (status: Partial<ConnectionStatus>) => void;
 
@@ -221,6 +227,7 @@ export const useAppStore = create<AppState>((set) => ({
   currencySymbol: "$",
 
   faviconUrl: "",
+  greenhouseName: "My Greenhouse",
 
   plants: [],
   selectedPlantId: null,
@@ -302,6 +309,7 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrencyCode: (code) => set({ currencyCode: code }),
   setCurrencySymbol: (symbol) => set({ currencySymbol: symbol }),
   setFaviconUrl: (url) => set({ faviconUrl: url }),
+  setGreenhouseName: (name) => set({ greenhouseName: name }),
   setConnectionStatus: (status) =>
     set((state) => ({
       connectionStatus: { ...state.connectionStatus, ...status },
