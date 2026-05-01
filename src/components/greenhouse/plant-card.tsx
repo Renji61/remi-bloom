@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui";
 import { SafeImage } from "@/components/ui/safe-image";
 import { useAppStore } from "@/stores/app-store";
 import type { Plant, CareEvent, PlantLocation } from "@/lib/db";
-import { formatDateShort } from "@/lib/utils";
+import { formatDateShort, getRelativeTime } from "@/lib/utils";
 
 interface PlantCardProps {
   plant: Plant;
@@ -40,9 +40,6 @@ export function PlantCard({
 }: PlantCardProps) {
   const tags = useAppStore((s) => s.tags);
   const dateForAge = plant.plantedDate || plant.createdAt;
-  const daysSinceCreated = Math.floor(
-    (Date.now() - new Date(dateForAge).getTime()) / (1000 * 60 * 60 * 24)
-  );
 
   const plantTags = tags.filter((t) => plant.tags?.includes(t.id));
 
@@ -101,10 +98,7 @@ export function PlantCard({
             {/* Age & Edit */}
             <div className="flex shrink-0 flex-col items-center gap-1">
               <span className="text-[18px] font-bold tabular-nums text-on-surface-variant/40">
-                {daysSinceCreated}
-              </span>
-              <span className="text-[8px] font-semibold uppercase tracking-widest text-on-surface-variant/30">
-                days
+                {getRelativeTime(dateForAge)}
               </span>
               <button
                 onClick={(e) => {

@@ -6,35 +6,57 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sprout, LogIn, Loader2, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Sprout, Loader2, Eye, EyeOff, UserPlus, LogIn } from "lucide-react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { signIn } from "next-auth/react";
 import { HeaderThemeToggle } from "@/components/layout/weather-badge";
 
-export default function HomePage() {
-  return <LoginForm />;
-}
-
-function LoginForm() {
-  usePageTitle("Sign In");
+export default function RegisterPage() {
+  usePageTitle("Register");
   const router = useRouter();
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError("Please enter both username and password");
+    setError(null);
+
+    if (!username.trim() || !displayName.trim() || !password) {
+      setError("Username, display name, and password are required");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
-    setError(null);
-
     try {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          displayName,
+          email,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ error: "Registration failed" }));
+        setError(payload.error ?? "Registration failed");
+        setLoading(false);
+        return;
+      }
+
       const result = await signIn("credentials", {
         username: username.trim(),
         password,
@@ -42,11 +64,11 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Invalid username or password");
-        setLoading(false);
-      } else {
-        router.replace("/home");
+        router.replace("/login");
+        return;
       }
+
+      router.replace("/home");
     } catch {
       setError("An error occurred. Please try again.");
       setLoading(false);
@@ -59,14 +81,13 @@ function LoginForm() {
         <HeaderThemeToggle />
       </div>
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--theme-primary)]/20">
             <Sprout size={32} className="text-[var(--theme-primary)]" />
           </div>
-          <h1 className="text-xl font-bold text-on-surface">REMI Bloom</h1>
+          <h1 className="text-xl font-bold text-on-surface">Create Account</h1>
           <p className="mt-1 text-sm text-on-surface-variant/70">
-            Sign in to manage your garden
+            Start managing your garden with REMI Bloom
           </p>
         </div>
 
@@ -77,9 +98,26 @@ function LoginForm() {
                 label="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder="Choose a username"
                 autoComplete="username"
                 autoFocus
+              />
+
+              <Input
+                label="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your display name"
+                autoComplete="name"
+              />
+
+              <Input
+                label="Email (optional)"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
               />
 
               <div className="relative">
@@ -88,8 +126,8 @@ function LoginForm() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
+                  placeholder="Create a password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -101,6 +139,15 @@ function LoginForm() {
                 </button>
               </div>
 
+              <Input
+                label="Confirm Password"
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your password"
+                autoComplete="new-password"
+              />
+
               {error && (
                 <div className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-400">
                   {error}
@@ -111,30 +158,23 @@ function LoginForm() {
                 {loading ? (
                   <Loader2 size={14} className="animate-spin" />
                 ) : (
-                  <LogIn size={14} />
+                  <UserPlus size={14} />
                 )}
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
 
-            <div className="mt-4 rounded-xl bg-surface-container/50 p-3 text-center">
-              <p className="text-xs text-on-surface-variant/70">
-                New to REMI Bloom?
-              </p>
+            <div className="mt-4 text-center">
               <Link
-                href="/register"
-                className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-surface-container-high px-5 text-sm font-semibold text-on-surface-variant transition-all duration-200 hover:bg-surface-container-highest"
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)] hover:underline"
               >
-                <UserPlus size={14} />
-                Create Account
+                <LogIn size={12} />
+                Already have an account? Sign in
               </Link>
             </div>
           </CardContent>
         </Card>
-
-        <p className="mt-6 text-center text-[10px] text-on-surface-variant/40">
-          REMI Bloom v1.0.0 — PWA Garden Manager
-        </p>
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ import {
 import { SafeImage } from "@/components/ui/safe-image";
 import { useAppStore } from "@/stores/app-store";
 import type { Plant, CareEvent, PlantLocation } from "@/lib/db";
-import { formatDateShort } from "@/lib/utils";
+import { formatDateShort, getRelativeTime } from "@/lib/utils";
 
 interface PlantListViewProps {
   plant: Plant;
@@ -39,9 +39,6 @@ export function PlantListView({
 }: PlantListViewProps) {
   const tags = useAppStore((s) => s.tags);
   const dateForAge = plant.plantedDate || plant.createdAt;
-  const daysSinceCreated = Math.floor(
-    (Date.now() - new Date(dateForAge).getTime()) / (1000 * 60 * 60 * 24)
-  );
 
   const plantTags = tags.filter((t) => plant.tags?.includes(t.id));
 
@@ -83,7 +80,7 @@ export function PlantListView({
             </h3>
             {/* Age */}
             <span className="shrink-0 rounded-md bg-surface-container-high px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-on-surface-variant/50">
-              {daysSinceCreated}d
+              {getRelativeTime(dateForAge)}
             </span>
           </div>
           <p className="text-xs text-on-surface-variant/70 italic truncate">

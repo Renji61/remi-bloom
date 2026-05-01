@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Camera, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -24,15 +24,19 @@ export function CameraView({ onCapture }: CameraViewProps) {
       });
       setStream(mediaStream);
       setPermissionDenied(false);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
     } catch {
       setPermissionDenied(true);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  // Assign the stream to the video element after it's rendered
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {

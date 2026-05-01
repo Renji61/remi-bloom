@@ -23,6 +23,9 @@ import {
   List,
   Sparkles,
   ArrowUpDown,
+  CalendarDays,
+  Heart,
+  Tag,
 } from "lucide-react";
 import {
   Input,
@@ -101,8 +104,8 @@ export default function HomePage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Plant sort state
-  const [plantSortKey, setPlantSortKey] = useState<"createdAt" | "name">("createdAt");
-  const [plantSortDirection, setPlantSortDirection] = useState<"asc" | "desc">("desc");
+  const [plantSortKey, setPlantSortKey] = useState<"createdAt" | "name">("name");
+  const [plantSortDirection, setPlantSortDirection] = useState<"asc" | "desc">("asc");
   const [plantSortLoaded, setPlantSortLoaded] = useState(false);
 
   // Load saved sort preferences
@@ -326,7 +329,7 @@ export default function HomePage() {
       description: plant.description,
       emoji: plant.emoji,
       imageUrl: plant.imageUrl,
-      plantedDate: plant.plantedDate ?? "",
+      plantedDate: plant.plantedDate?.substring(0, 10) ?? "",
       locationId: plant.locationId || "none",
       tags: [...plant.tags],
     });
@@ -355,7 +358,7 @@ export default function HomePage() {
         imageUrl: imageUrlFinal,
         locationId: plantForm.locationId === "none" ? null : plantForm.locationId,
         tags: plantForm.tags,
-        plantedDate: plantForm.plantedDate || null,
+        plantedDate: plantForm.plantedDate?.substring(0, 10) || null,
       };
       await updatePlantDb(updated);
       updatePlantInStore(updated);
@@ -370,7 +373,7 @@ export default function HomePage() {
         emoji: plantForm.emoji,
         imageUrl: imageUrlFinal,
         createdAt: new Date().toISOString().split("T")[0],
-        plantedDate: plantForm.plantedDate || null,
+        plantedDate: plantForm.plantedDate?.substring(0, 10) || null,
         locationId: plantForm.locationId === "none" ? null : plantForm.locationId,
         tags: plantForm.tags,
       };
@@ -512,7 +515,7 @@ export default function HomePage() {
               {filteredPlants.length} of {plants.length} plants
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
             <Button onClick={openAddForm} size="sm" className="shrink-0">
               <Plus size={14} />
@@ -523,13 +526,17 @@ export default function HomePage() {
         </div>
 
         {/* Filter row – scrollable on mobile */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-            className="flex shrink-0 items-center gap-1 rounded-lg bg-surface-container-high px-2.5 py-1.5 text-[10px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-surface-container-high px-2.5 py-1.5 text-[10px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest"
             aria-label={viewMode === "grid" ? "Switch to List View" : "Switch to Grid View"}
           >
-            {viewMode === "grid" ? <List size={14} aria-hidden="true" /> : <LayoutGrid size={14} aria-hidden="true" />}
+            {viewMode === "grid" ? (
+              <List size={14} aria-hidden="true" />
+            ) : (
+              <LayoutGrid size={14} aria-hidden="true" />
+            )}
             <span className="hidden sm:inline">
               {viewMode === "grid" ? "List" : "Grid"}
             </span>
@@ -537,35 +544,16 @@ export default function HomePage() {
           <button
             onClick={() => setNeedsCareFilter(!needsCareFilter)}
             aria-pressed={needsCareFilter}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all flex items-center gap-1.5 ${
               needsCareFilter
                 ? "bg-amber-500/20 text-amber-500"
                 : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
+            <Heart size={12} aria-hidden="true" className="hidden sm:inline" />
             Needs Care
           </button>
           <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
-            <button
-              onClick={() => {
-                if (plantSortKey !== "createdAt") {
-                  setPlantSortKey("createdAt");
-                  setPlantSortDirection("desc");
-                } else {
-                  setPlantSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
-                }
-              }}
-              className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors flex items-center gap-1 ${
-                plantSortKey === "createdAt"
-                  ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
-                  : "text-on-surface-variant/60 hover:text-on-surface"
-              }`}
-            >
-              Date
-              <span className="text-[9px]">
-                {plantSortKey === "createdAt" ? (plantSortDirection === "desc" ? "↓" : "↑") : ""}
-              </span>
-            </button>
             <button
               onClick={() => {
                 if (plantSortKey !== "name") {
@@ -581,10 +569,29 @@ export default function HomePage() {
                   : "text-on-surface-variant/60 hover:text-on-surface"
               }`}
             >
+              <ArrowUpDown size={12} aria-hidden="true" className="hidden sm:block" />
               Name
               <span className="text-[9px]">
                 {plantSortKey === "name" ? (plantSortDirection === "asc" ? "A→Z" : "Z→A") : ""}
               </span>
+            </button>
+            <button
+              onClick={() => {
+                if (plantSortKey !== "createdAt") {
+                  setPlantSortKey("createdAt");
+                  setPlantSortDirection("desc");
+                } else {
+                  setPlantSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+                }
+              }}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                plantSortKey === "createdAt"
+                  ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                  : "text-on-surface-variant/60 hover:text-on-surface"
+              }`}
+            >
+              <CalendarDays size={12} aria-hidden="true" className="hidden sm:block" />
+              Date
             </button>
           </div>
           <button
@@ -600,7 +607,7 @@ export default function HomePage() {
                 : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
-            <MapPin size={10} className="inline mr-0.5" aria-hidden="true" />
+            <MapPin size={10} className="hidden sm:inline mr-1" aria-hidden="true" />
             Location
           </button>
           <button
@@ -614,6 +621,7 @@ export default function HomePage() {
                 : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
+            <Tag size={12} aria-hidden="true" className="hidden sm:inline mr-1" />
             Tags
           </button>
         </div>
@@ -1244,4 +1252,117 @@ function IdentifyPlantButton({ onClick }: { onClick: () => void }) {
       <span className="sm:hidden">Scan</span>
     </button>
   );
+}
+
+// ---- Inline Test for Plant Form Fields ----
+function testPlantFormFields(): string[] {
+  const results: string[] = [];
+
+  function assert(description: string, pass: boolean) {
+    results.push(`${pass ? "PASS" : "FAIL"}: ${description}`);
+  }
+
+  // Test 1: openEditForm with plantedDate as ISO timestamp (from Postgres sync)
+  const plantWithTs: Plant = {
+    id: "test-1",
+    userId: "user-1",
+    name: "Monstera",
+    scientificName: "Monstera deliciosa",
+    description: "A beautiful plant",
+    emoji: "🌿",
+    imageUrl: "https://example.com/photo.jpg",
+    createdAt: "2024-01-15",
+    plantedDate: "2024-03-15T00:00:00.000Z",
+    locationId: "loc-1",
+    tags: ["tag-1", "tag-2"],
+  };
+  const formFromTs = {
+    name: plantWithTs.name,
+    scientificName: plantWithTs.scientificName,
+    description: plantWithTs.description,
+    emoji: plantWithTs.emoji,
+    imageUrl: plantWithTs.imageUrl,
+    plantedDate: plantWithTs.plantedDate?.substring(0, 10) ?? "",
+    locationId: plantWithTs.locationId || "none",
+    tags: [...plantWithTs.tags],
+  };
+  assert("name matches after ISO timestamp plantedDate", formFromTs.name === "Monstera");
+  assert("scientificName matches", formFromTs.scientificName === "Monstera deliciosa");
+  assert("description matches", formFromTs.description === "A beautiful plant");
+  assert("emoji matches", formFromTs.emoji === "🌿");
+  assert("imageUrl matches", formFromTs.imageUrl === "https://example.com/photo.jpg");
+  assert("plantedDate is YYYY-MM-DD (not ISO timestamp)", formFromTs.plantedDate === "2024-03-15");
+  assert("plantedDate is exactly 10 chars", formFromTs.plantedDate.length === 10);
+  assert("locationId matches", formFromTs.locationId === "loc-1");
+  assert("tags array preserved", formFromTs.tags.length === 2 && formFromTs.tags[0] === "tag-1");
+
+  // Test 2: openEditForm with plantedDate as clean YYYY-MM-DD (from IndexedDB)
+  const plantWithClean: Plant = {
+    ...plantWithTs,
+    plantedDate: "2024-03-15",
+  };
+  const formFromClean = {
+    ...plantWithClean,
+    plantedDate: plantWithClean.plantedDate?.substring(0, 10) ?? "",
+  };
+  assert("clean plantedDate stays unchanged", formFromClean.plantedDate === "2024-03-15");
+
+  // Test 3: openEditForm with plantedDate as null
+  const plantWithNull: Plant = {
+    ...plantWithTs,
+    plantedDate: null,
+  };
+  const formFromNull = {
+    ...plantWithNull,
+    plantedDate: plantWithNull.plantedDate?.substring(0, 10) ?? "",
+  };
+  assert("null plantedDate becomes empty string", formFromNull.plantedDate === "");
+
+  // Test 4: handleSavePlant update path — normalize plantedDate before saving
+  const updateForm = { ...formFromTs, plantedDate: "2024-03-15T00:00:00.000Z" };
+  const savedUpdate = {
+    ...plantWithTs,
+    plantedDate: updateForm.plantedDate?.substring(0, 10) || null,
+  };
+  assert("save normalizes plantedDate to YYYY-MM-DD", savedUpdate.plantedDate === "2024-03-15");
+
+  // Test 5: handleSavePlant update path — empty plantedDate becomes null
+  const updateFormEmpty = { ...formFromTs, plantedDate: "" };
+  const savedUpdateEmpty = {
+    ...plantWithTs,
+    plantedDate: updateFormEmpty.plantedDate?.substring(0, 10) || null,
+  };
+  assert("empty plantedDate becomes null on save", savedUpdateEmpty.plantedDate === null);
+
+  // Test 6: handleSavePlant create path — normalize plantedDate
+  const createForm = { ...formFromTs, plantedDate: "2024-06-01" };
+  const savedCreate = {
+    id: "new-id",
+    userId: "user-1",
+    name: createForm.name,
+    scientificName: createForm.scientificName,
+    description: createForm.description,
+    emoji: createForm.emoji,
+    imageUrl: createForm.imageUrl,
+    createdAt: "2024-06-01",
+    plantedDate: createForm.plantedDate?.substring(0, 10) || null,
+    locationId: createForm.locationId === "none" ? null : createForm.locationId,
+    tags: createForm.tags,
+  };
+  assert("create normalizes plantedDate", savedCreate.plantedDate === "2024-06-01");
+  assert("locationId 'none' becomes null on create", savedCreate.locationId === null);
+
+  // Print results
+  console.log("--- Plant Form Field Test Results ---");
+  results.forEach((r) => console.log(r));
+  const passCount = results.filter((r) => r.startsWith("PASS")).length;
+  const failCount = results.filter((r) => r.startsWith("FAIL")).length;
+  console.log(`Total: ${passCount} passed, ${failCount} failed, ${results.length} total`);
+
+  return results;
+}
+
+// Expose for manual QA in browser console
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).testPlantFormFields = testPlantFormFields;
 }

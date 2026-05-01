@@ -30,7 +30,10 @@ export default function CalendarPage() {
   const currentUserId = useAppStore((s) => s.currentUserId);
 
   const today = useMemo(() => new Date(), []);
-  const todayIso = useMemo(() => today.toISOString().split("T")[0], [today]);
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [today]);
   const [viewDate, setViewDate] = useState(today);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -44,7 +47,7 @@ export default function CalendarPage() {
 
   const selectedDateStr = useMemo(() => {
     if (selectedDay === null) return null;
-    return new Date(year, month, selectedDay).toISOString().split("T")[0];
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
   }, [selectedDay, year, month]);
 
   const calendarDays = useMemo(() => {
@@ -75,7 +78,7 @@ export default function CalendarPage() {
 
   const getActionsForDay = useCallback(
     (day: number) => {
-      const dateStr = new Date(year, month, day).toISOString().split("T")[0];
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       return actionItems.filter((a) => a.date?.startsWith(dateStr));
     },
     [actionItems, year, month]
@@ -271,7 +274,7 @@ export default function CalendarPage() {
                       setSelectedDay(selectedDay === day ? null : day);
                     }}
                     onDoubleClick={() => {
-                      const ds = new Date(year, month, day).toISOString().split("T")[0];
+                      const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       openAddForm(ds);
                     }}
                     className={cn(
@@ -311,9 +314,9 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-on-surface">
                 {selectedDateStr ? (
-                  <span>Actions — {new Date(selectedDateStr + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                  <span>Activities — {new Date(selectedDateStr + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
                 ) : (
-                  "Actions"
+                  "Activities"
                 )}
               </h2>
               <div className="flex items-center gap-1">
@@ -360,7 +363,7 @@ export default function CalendarPage() {
             <div className="space-y-1 max-h-[500px] overflow-y-auto">
               {filteredActions.length === 0 && (
                 <p className="text-xs text-on-surface-variant/40 text-center py-8">
-                  No actions found
+                  No activities found
                 </p>
               )}
               {filteredActions.map((action) => (
@@ -431,14 +434,14 @@ export default function CalendarPage() {
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); }}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>{editingAction ? "Edit Action" : "New Action"}</DialogTitle>
+            <DialogTitle>{editingAction ? "Edit Activity" : "New Activity"}</DialogTitle>
             <DialogDescription>
-              {editingAction ? "Update this care action" : "Add a new care action to your schedule"}
+              {editingAction ? "Update this care activity" : "Add a new care activity to your schedule"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              label="Action Name"
+              label="Activity Name"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
               placeholder="e.g. Water the roses"

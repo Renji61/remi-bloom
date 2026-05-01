@@ -42,6 +42,31 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+export function getRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (totalDays < 0) return "0d";
+  if (totalDays === 0) return "0d";
+  if (totalDays === 1) return "1 day";
+  if (totalDays < 30) return `${totalDays} days`;
+
+  const months = Math.floor(totalDays / 30);
+  const remainingDays = totalDays % 30;
+
+  if (months < 12) {
+    if (remainingDays === 0) return `${months}m`;
+    return `${months}m ${remainingDays}d`;
+  }
+
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  if (remainingMonths === 0) return `${years}y`;
+  return `${years}y ${remainingMonths}m`;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);

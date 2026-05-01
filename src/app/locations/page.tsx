@@ -14,6 +14,7 @@ import {
   Upload,
   X,
   ArrowUpDown,
+  CalendarDays,
 } from "lucide-react";
 import {
   Button,
@@ -295,7 +296,7 @@ export default function LocationsPage() {
       </div>
 
       {/* Sort Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
           <button
             onClick={() => {
@@ -313,6 +314,7 @@ export default function LocationsPage() {
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
+            <ArrowUpDown size={12} aria-hidden="true" className="hidden sm:block" />
             Name
             <span className="text-[9px]">
               {sortKey === "name" ? (sortDirection === "asc" ? "A→Z" : "Z→A") : ""}
@@ -334,13 +336,10 @@ export default function LocationsPage() {
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
+            <CalendarDays size={12} aria-hidden="true" className="hidden sm:block" />
             Date
-            <span className="text-[9px]">
-              {sortKey === "createdAt" ? (sortDirection === "desc" ? "↓" : "↑") : ""}
-            </span>
           </button>
         </div>
-        <ArrowUpDown size={12} className="text-on-surface-variant/50" />
       </div>
 
       {/* Location Grid */}

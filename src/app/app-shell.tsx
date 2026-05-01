@@ -12,7 +12,7 @@ import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
 import { useSession } from "next-auth/react";
 
-const AUTH_PAGES = new Set(["/login"]);
+const AUTH_PAGES = new Set(["/login", "/register"]);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
