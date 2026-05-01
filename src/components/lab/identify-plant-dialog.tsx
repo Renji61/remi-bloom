@@ -214,25 +214,84 @@ function ConfirmIdentityScreen({
   onCancel,
 }: {
   result: IdentificationResult;
-  onConfirm: (customName?: string, customSciName?: string) => void;
+  onConfirm: (customName?: string, customSciName?: string, selectedIndexes?: number[]) => void;
   onSelectMatch: (name: string, sciName: string) => void;
   onCancel: () => void;
 }) {
   const [editingName, setEditingName] = useState(result.species.name);
   const [editingSciName, setEditingSciName] = useState(result.species.scientificName);
+  const totalTasks = result.careSchedules.length + result.fertilizers.filter((f) => !f.inStock).length;
+  const [selectedTasks, setSelectedTasks] = useState<boolean[]>(() => Array(totalTasks).fill(true));
 
-  const renderCareSchedule = (cs: CareScheduleSuggestion) => (
-    <div key={cs.type} className="flex items-center gap-2 rounded-xl bg-surface-container/60 px-3 py-2">
-      {cs.type === "water" && <Droplets size={14} className="text-blue-400" />}
-      {cs.type === "fertilize" && <Sprout size={14} className="text-emerald-400" />}
-      {cs.type === "prune" && <ScissorsIcon size={14} className="text-purple-400" />}
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold text-on-surface">{cs.label}</p>
-        <p className="text-[9px] text-on-surface-variant/60">Every {cs.frequencyDays} days</p>
-      </div>
-      <Check size={14} className="shrink-0 text-emerald-400" />
-    </div>
-  );
+  const toggleTask = (index: number) => {
+    setSelectedTasks((prev) => {
+      const next = [...prev];
+      next[index] = !next[index];
+      return next;
+    });
+  };
+
+  const allSelected = selectedTasks.every(Boolean);
+  const toggleAll = () => {
+    setSelectedTasks(Array(totalTasks).fill(!allSelected));
+  };
+
+  const renderCareSchedule = (cs: CareScheduleSuggestion, index: number) => {
+    const isSelected = selectedTasks[index];
+    return (
+      <button
+        key={cs.type}
+        onClick={() => toggleTask(index)}
+        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-all ${
+          isSelected
+            ? "bg-surface-container/60"
+            : "bg-surface-container/20 opacity-60"
+        }`}
+      >
+        {cs.type === "water" && <Droplets size={14} className={isSelected ? "text-blue-400" : "text-on-surface-variant/40"} />}
+        {cs.type === "fertilize" && <Sprout size={14} className={isSelected ? "text-emerald-400" : "text-on-surface-variant/40"} />}
+        {cs.type === "prune" && <ScissorsIcon size={14} className={isSelected ? "text-purple-400" : "text-on-surface-variant/40"} />}
+        <div className="min-w-0 flex-1">
+          <p className={`text-[11px] font-semibold ${isSelected ? "text-on-surface" : "text-on-surface-variant/60"}`}>{cs.label}</p>
+          <p className="text-[9px] text-on-surface-variant/60">Every {cs.frequencyDays} days</p>
+        </div>
+        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all ${
+          isSelected
+            ? "border-[var(--theme-primary)] bg-[var(--theme-primary)] text-white"
+            : "border-outline/30 bg-transparent"
+        }`}>
+          {isSelected && <Check size={11} />}
+        </div>
+      </button>
+    );
+  };
+
+  const renderFertilizerTask = (f: FertilizerSuggestion, index: number) => {
+    const taskIndex = result.careSchedules.length + index;
+    const isSelected = selectedTasks[taskIndex];
+    return (
+      <button
+        key={`fert-${f.name}`}
+        onClick={() => toggleTask(taskIndex)}
+        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-all ${
+          isSelected
+            ? "bg-surface-container/40"
+            : "bg-surface-container/20 opacity-60"
+        }`}
+      >
+        <Package size={12} className={isSelected ? "text-on-surface-variant/50" : "text-on-surface-variant/20"} />
+        <span className={`flex-1 text-[11px] ${isSelected ? "text-on-surface-variant" : "text-on-surface-variant/40"}`}>{f.name}</span>
+        <span className="text-[9px] text-amber-400">Not in inventory</span>
+        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all ${
+          isSelected
+            ? "border-[var(--theme-primary)] bg-[var(--theme-primary)] text-white"
+            : "border-outline/30 bg-transparent"
+        }`}>
+          {isSelected && <Check size={11} />}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <motion.div
@@ -327,6 +386,21 @@ function ConfirmIdentityScreen({
         </div>
       )}
 
+      {/* Toggle all / none */}
+      {totalTasks > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleAll}
+            className="text-[10px] text-on-surface-variant/50 underline underline-offset-2 hover:text-on-surface-variant transition-colors"
+          >
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+          <span className="text-[9px] text-on-surface-variant/30">
+            ({selectedTasks.filter(Boolean).length}/{totalTasks} selected)
+          </span>
+        </div>
+      )}
+
       {/* Care schedule suggestions */}
       {result.careSchedules.length > 0 && (
         <div>
@@ -334,32 +408,19 @@ function ConfirmIdentityScreen({
             Care Schedule
           </h3>
           <div className="space-y-1.5">
-            {result.careSchedules.map(renderCareSchedule)}
+            {result.careSchedules.map((cs, i) => renderCareSchedule(cs, i))}
           </div>
         </div>
       )}
 
-      {/* Fertilizer suggestions */}
-      {result.fertilizers.length > 0 && (
+      {/* Fertilizer purchase tasks */}
+      {result.fertilizers.filter((f) => !f.inStock).length > 0 && (
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
-            Recommended Fertilizers
+            Purchase Reminders
           </h3>
           <div className="space-y-1">
-            {result.fertilizers.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded-xl bg-surface-container/40 px-3 py-2"
-              >
-                <Package size={12} className="text-on-surface-variant/50" />
-                <span className="flex-1 text-[11px] text-on-surface-variant">{f.name}</span>
-                {f.inStock ? (
-                  <span className="text-[9px] text-emerald-400">In stock</span>
-                ) : (
-                  <span className="text-[9px] text-amber-400">Not in inventory</span>
-                )}
-              </div>
-            ))}
+            {result.fertilizers.filter((f) => !f.inStock).map((f, i) => renderFertilizerTask(f, i))}
           </div>
         </div>
       )}
@@ -370,7 +431,13 @@ function ConfirmIdentityScreen({
           Cancel
         </Button>
         <Button
-          onClick={() => onConfirm(editingName, editingSciName)}
+          onClick={() => {
+            const selectedIndexes: number[] = [];
+            for (let i = 0; i < selectedTasks.length; i++) {
+              if (selectedTasks[i]) selectedIndexes.push(i);
+            }
+            onConfirm(editingName, editingSciName, selectedIndexes);
+          }}
           className="flex-1"
         >
           <Sparkles size={14} />
@@ -501,7 +568,7 @@ export function IdentifyPlantDialog({
     }
   };
 
-  const handleConfirm = async (customName?: string, customSciName?: string) => {
+  const handleConfirm = async (customName?: string, customSciName?: string, selectedIndexes?: number[]) => {
     if (!identificationResult) return;
     setSaving(true);
     setError(null);
@@ -510,6 +577,7 @@ export function IdentifyPlantDialog({
       const name = customName || identificationResult.species.name;
       const sciName = customSciName || identificationResult.species.scientificName;
       const today = new Date().toISOString().split("T")[0];
+      const selectedSet = selectedIndexes ? new Set(selectedIndexes) : null;
 
       // Upload the image to IndexedDB for persistence
       let imageUrl = "";
@@ -545,9 +613,11 @@ export function IdentifyPlantDialog({
         ? careLines.join("\n")
         : `Identified via PlantIntelligenceService on ${new Date().toLocaleDateString()}. Confidence: ${identificationResult.species.confidence}%.`;
 
-      // Build care schedule tasks
+      // Build care schedule tasks — only include user-selected ones
       const careTasks: ActionItem[] = [];
-      for (const cs of identificationResult.careSchedules) {
+      for (let i = 0; i < identificationResult.careSchedules.length; i++) {
+        if (selectedSet && !selectedSet.has(i)) continue;
+        const cs = identificationResult.careSchedules[i];
         careTasks.push({
           id: "",
           userId: currentUserId ?? "",
@@ -568,28 +638,30 @@ export function IdentifyPlantDialog({
         });
       }
 
-      // Also create purchase tasks for missing fertilizers
-      for (const f of identificationResult.fertilizers) {
-        if (!f.inStock) {
-          careTasks.push({
-            id: "",
-            userId: currentUserId ?? "",
-            title: `Purchase ${f.name} for ${name}`,
-            source: "manual",
-            type: "maintenance",
-            date: today,
-            time: "",
-            completed: false,
-            plantIds: [],
-            plantNames: [name],
-            note: `Fertilizer recommended for ${name} (${sciName})`,
-            repeat: "none",
-            repeatConfig: {},
-            snoozedUntil: null,
-            category: "maintenance",
-            createdAt: new Date().toISOString(),
-          });
-        }
+      // Build fertilizer purchase tasks — only include user-selected ones
+      const outOfStockFertilizers = identificationResult.fertilizers.filter((f) => !f.inStock);
+      for (let i = 0; i < outOfStockFertilizers.length; i++) {
+        const taskIndex = identificationResult.careSchedules.length + i;
+        if (selectedSet && !selectedSet.has(taskIndex)) continue;
+        const f = outOfStockFertilizers[i];
+        careTasks.push({
+          id: "",
+          userId: currentUserId ?? "",
+          title: `Purchase ${f.name} for ${name}`,
+          source: "manual",
+          type: "maintenance",
+          date: today,
+          time: "",
+          completed: false,
+          plantIds: [],
+          plantNames: [name],
+          note: `Fertilizer recommended for ${name} (${sciName})`,
+          repeat: "none",
+          repeatConfig: {},
+          snoozedUntil: null,
+          category: "maintenance",
+          createdAt: new Date().toISOString(),
+        });
       }
 
       onComplete({
@@ -720,6 +792,9 @@ export function IdentifyPlantDialog({
                   .then((blob) => {
                     const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
                     handleCapture(data, file);
+                  })
+                  .catch(() => {
+                    handleCapture(data);
                   });
               }}
             />

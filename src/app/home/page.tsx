@@ -316,8 +316,11 @@ export default function HomePage() {
     pendingCareTasksRef.current = [];
   };
 
-  const openAddForm = () => {
+  const openAddForm = (prefill?: Partial<typeof plantForm>) => {
     resetPlantForm();
+    if (prefill) {
+      setPlantForm((prev) => ({ ...prev, ...prefill }));
+    }
     setShowPlantForm(true);
   };
 
@@ -420,16 +423,15 @@ export default function HomePage() {
   // --- Identify Plants callback ---
   const handleIdentifyComplete = useCallback((result: IdentifyResult) => {
     setShowIdentifyDialog(false);
-    // Pre-fill the plant form with identification results
-    setPlantForm((prev) => ({
-      ...prev,
+    // Store care tasks for when the plant is saved
+    pendingCareTasksRef.current = result.careTasks;
+    // Open the add plant form with pre-filled data
+    openAddForm({
       name: result.name,
       scientificName: result.scientificName,
       description: result.description,
       imageUrl: result.imageUrl,
-    }));
-    // Store care tasks for when the plant is saved
-    pendingCareTasksRef.current = result.careTasks;
+    });
     // If an image was uploaded, track it
     if (result.imageUrl && result.imageUrl.startsWith("upload:")) {
       const imageId = result.imageUrl.slice(7);
@@ -438,8 +440,6 @@ export default function HomePage() {
         if (url) setUploadedImageUrl(url);
       });
     }
-    // Open the add plant form
-    openAddForm();
   }, []);
 
   const toggleTagInForm = (tagId: string) => {
@@ -517,7 +517,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
-            <Button onClick={openAddForm} size="sm" className="shrink-0">
+            <Button onClick={() => openAddForm()} size="sm" className="shrink-0">
               <Plus size={14} />
               <span className="hidden sm:inline">Add Plant</span>
               <span className="sm:hidden">Add</span>
@@ -699,7 +699,7 @@ export default function HomePage() {
           <p className="text-xs text-on-surface-variant/50">
             Try adjusting your search or filters
           </p>
-          <Button onClick={openAddForm} className="mt-4" size="sm">
+          <Button onClick={() => openAddForm()} className="mt-4" size="sm">
             <Plus size={14} />
             Add Your First Plant
           </Button>
