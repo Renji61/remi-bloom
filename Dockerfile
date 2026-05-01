@@ -9,6 +9,9 @@ RUN npm ci --only=production
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Build-time dependencies that Alpine may need for native modules
+RUN apk add --no-cache python3 make g++
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -16,6 +19,9 @@ COPY tsconfig.json next.config.ts drizzle.config.ts postcss.config.js ./
 COPY public ./public
 COPY src ./src
 
+# The build does not need a real database connection;
+# drizzle.config.ts is only used by drizzle-kit at dev time, not by next build
+ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 3: Production
@@ -30,8 +36,8 @@ LABEL org.opencontainers.image.title="REMI Bloom" \
       org.opencontainers.image.source="https://github.com/renji61/remi-bloom" \
       org.opencontainers.image.licenses="UNLICENSED"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
