@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { themeColorSchemes, type ThemeColor, type ThemeMode } from "@/lib/theme-config";
 
@@ -10,6 +10,7 @@ export function useTheme() {
   const setThemeMode = useAppStore((s) => s.setThemeMode);
   const setThemeColor = useAppStore((s) => s.setThemeColor);
 
+  // Apply theme to document whenever mode or color changes
   useEffect(() => {
     const root = document.documentElement;
     const resolved = resolveTheme(themeMode);
@@ -20,6 +21,25 @@ export function useTheme() {
 
     applyThemeColor(themeColor, resolved);
     updateMetaThemeColor(themeColor, resolved);
+  }, [themeMode, themeColor]);
+
+  // Listen for OS-level theme changes when in "system" mode
+  useEffect(() => {
+    if (themeMode !== "system") return;
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      const root = document.documentElement;
+      const resolved = mq.matches ? "dark" : "light";
+      root.setAttribute("data-theme", resolved);
+      root.classList.toggle("dark", resolved === "dark");
+      root.classList.toggle("light", resolved === "light");
+      applyThemeColor(themeColor, resolved);
+      updateMetaThemeColor(themeColor, resolved);
+    };
+
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
   }, [themeMode, themeColor]);
 
   return { themeMode, themeColor, setThemeMode, setThemeColor };

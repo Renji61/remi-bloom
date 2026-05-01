@@ -18,6 +18,8 @@ export function useOffline() {
       try {
         await replaySyncQueue(userId);
         await loadUserData(userId);
+      } catch {
+        // Sync is best-effort; errors are already logged upstream
       } finally {
         setConnectionStatus({ syncing: false });
       }
@@ -26,13 +28,13 @@ export function useOffline() {
     const update = () => {
       setConnectionStatus({ offline: !navigator.onLine });
       if (navigator.onLine) {
-        void syncNow();
+        syncNow().catch(() => {});
       }
     };
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
     update();
-    void syncNow();
+    syncNow().catch(() => {});
 
     intervalRef.current = setInterval(async () => {
       if (!navigator.onLine) {
@@ -54,7 +56,7 @@ export function useOffline() {
           offline: !resp.ok,
         });
         if (resp.ok) {
-          void syncNow();
+          syncNow().catch(() => {});
         }
       } catch {
         markApiAvailable(false);

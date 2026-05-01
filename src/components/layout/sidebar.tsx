@@ -103,7 +103,7 @@ export function Sidebar() {
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 pathname === "/admin"
-                  ? "bg-purple-500/10 text-purple-400"
+                  ? "bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]"
                   : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               )}
             >
@@ -112,7 +112,7 @@ export function Sidebar() {
               {pathname === "/admin" && (
                 <motion.div
                   layoutId="sidebar-active-admin"
-                  className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-purple-400"
+                  className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-[var(--theme-primary)]"
                   aria-hidden="true"
                 />
               )}

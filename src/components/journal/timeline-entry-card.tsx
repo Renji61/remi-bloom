@@ -102,6 +102,11 @@ export function TimelineEntryCard({
             (entry as JournalEntry).note && (
               <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-wrap">
                 {(entry as JournalEntry).note}
+                {(entry as JournalEntry).performedBy && (
+                  <span className="text-[10px] text-on-surface-variant/40 ml-1">
+                    — by {(entry as JournalEntry).performedBy}
+                  </span>
+                )}
               </p>
             )
           ) : (

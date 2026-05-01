@@ -191,5 +191,5 @@ export function useWeatherTrigger() {
         // Silently fail — notifications are best-effort
       }
     })();
-  }, [weatherData, weatherLocationHash]);
+  }, [weatherData, weatherLocationHash, currentUserId]);
 }

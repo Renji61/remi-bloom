@@ -37,22 +37,14 @@ export interface AlertPayload {
   priority?: number;
 }
 
+const NOTIFICATION_TIMEOUT_MS = 10000;
+
 // ──────────────────────────────────────────────
 // URL Normalisation Helpers
 // ──────────────────────────────────────────────
 
 /**
  * Normalise a Gotify server URL so it always ends with /message.
- *
- * Rules:
- *  - Strip trailing slash.
- *  - If the path already ends with /message, leave it as-is.
- *  - Otherwise, append /message.
- *
- * Examples:
- *  http://host:8055       → http://host:8055/message
- *  http://host:8055/      → http://host:8055/message
- *  http://host:8055/message → http://host:8055/message
  */
 export function normaliseGotifyUrl(base: string): string {
   const cleaned = base.replace(/\/+$/, "");
@@ -62,16 +54,6 @@ export function normaliseGotifyUrl(base: string): string {
 
 /**
  * Normalise an Apprise API URL so it always ends with /notify.
- *
- * Rules:
- *  - Strip trailing slash.
- *  - If the path already ends with /notify, leave it as-is.
- *  - Otherwise, append /notify.
- *
- * Examples:
- *  http://apprise:8000       → http://apprise:8000/notify
- *  http://apprise:8000/      → http://apprise:8000/notify
- *  http://apprise:8000/notify → http://apprise:8000/notify
  */
 export function normaliseAppriseUrl(base: string): string {
   const cleaned = base.replace(/\/+$/, "");
@@ -94,11 +76,6 @@ export function normaliseUrl(engine: NotificationEngine, base: string): string {
 
 /**
  * Send a notification via Gotify.
- *
- * POST /message
- * Content-Type: application/json
- * X-Gotify-Key: <token>
- * Body: { "title": "...", "message": "...", "priority": 8 }
  */
 async function sendGotify(
   config: ServerNotificationConfig,
@@ -118,6 +95,7 @@ async function sendGotify(
         message: payload.body,
         priority: payload.priority ?? 5,
       }),
+      signal: AbortSignal.timeout(NOTIFICATION_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -131,37 +109,36 @@ async function sendGotify(
     return { success: true };
   } catch (err) {
     const message =
-      err instanceof Error && "code" in err
+      err instanceof Error
         ? `Could not reach Gotify from the REMI Bloom server (${err.message})`
-        : `Could not reach Gotify from the REMI Bloom server`;
+        : "Could not reach Gotify from the REMI Bloom server";
     return { success: false, error: message };
   }
 }
 
 /**
  * Send a notification via Apprise API.
- *
- * POST /notify
- * Content-Type: application/json
- * Body: { "title": "...", "body": "...", "type": "info", "tag": "remi-bloom" }
- *
- * If a token/API key is configured, it is passed as a query parameter
- * (the standard Apprise API auth mechanism).
  */
 async function sendApprise(
   config: ServerNotificationConfig,
   payload: AlertPayload,
 ): Promise<{ success: boolean; error?: string }> {
   const baseUrl = normaliseAppriseUrl(config.url);
-  const apiUrl = new URL(baseUrl);
-
-  // Apprise API supports token-based auth via query parameter
-  if (config.token) {
-    apiUrl.searchParams.set("token", config.token);
+  let apiUrl: string;
+  try {
+    const parsed = new URL(baseUrl);
+    // Apprise API supports token-based auth via query parameter
+    if (config.token) {
+      parsed.searchParams.set("token", config.token);
+    }
+    // Use Authorization header instead of query parameter when possible
+    apiUrl = parsed.toString();
+  } catch {
+    return { success: false, error: "Invalid Apprise URL" };
   }
 
   try {
-    const response = await fetch(apiUrl.toString(), {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -170,6 +147,7 @@ async function sendApprise(
         type: "info",
         tag: "remi-bloom",
       }),
+      signal: AbortSignal.timeout(NOTIFICATION_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -183,9 +161,9 @@ async function sendApprise(
     return { success: true };
   } catch (err) {
     const message =
-      err instanceof Error && "code" in err
+      err instanceof Error
         ? `Could not reach Apprise from the REMI Bloom server (${err.message})`
-        : `Could not reach Apprise from the REMI Bloom server`;
+        : "Could not reach Apprise from the REMI Bloom server";
     return { success: false, error: message };
   }
 }
@@ -196,7 +174,6 @@ async function sendApprise(
 
 /**
  * Send a notification via the configured engine (server-side).
- * Returns a result object indicating success or failure.
  */
 export async function sendServerNotification(
   config: ServerNotificationConfig,

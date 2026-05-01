@@ -16,6 +16,7 @@ export function compressImage(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       URL.revokeObjectURL(img.src);
 
@@ -36,16 +37,23 @@ export function compressImage(
       }
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Prefer webp (smaller), fall back to jpeg
-      const mime = "image/webp";
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("Canvas toBlob returned null"));
-        },
-        mime,
-        quality
-      );
+      // Try webp first, fall back to jpeg
+      const tryEncode = (mime: string) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else if (mime === "image/webp") {
+              // WebP not supported, fall back to JPEG
+              tryEncode("image/jpeg");
+            } else {
+              reject(new Error("Canvas toBlob returned null"));
+            }
+          },
+          mime,
+          mime === "image/jpeg" ? Math.min(quality, 0.92) : quality
+        );
+      };
+      tryEncode("image/webp");
     };
     img.onerror = () => reject(new Error("Failed to load image for compression"));
     img.src = URL.createObjectURL(file);

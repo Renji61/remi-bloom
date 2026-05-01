@@ -15,6 +15,8 @@ import { useAppStore } from "@/stores/app-store";
 import { addActionItem, updateActionItem, deleteActionItem } from "@/lib/db";
 import { generateId, cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useGardenRole } from "@/hooks/use-garden-role";
+import { useSharedGardenSync } from "@/hooks/use-shared-garden-sync";
 import { computeNextDate, getRepeatLabel } from "@/lib/repeat-utils";
 
 type ActionItem = import("@/lib/db").ActionItem;
@@ -28,6 +30,8 @@ export default function CalendarPage() {
   const plants = useAppStore((s) => s.plants);
   const actionItems = useAppStore((s) => s.actionItems);
   const currentUserId = useAppStore((s) => s.currentUserId);
+  const gardenPermissions = useGardenRole();
+  useSharedGardenSync();
 
   const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => {
@@ -84,8 +88,23 @@ export default function CalendarPage() {
     [actionItems, year, month]
   );
 
+  // Apply shared garden scope filtering
+  const scopedActionItems = useMemo(() => {
+    // If user is owner or not a shared garden member, show all
+    if (gardenPermissions.role === null || gardenPermissions.role === "owner") {
+      return actionItems;
+    }
+    // If user has visible plant IDs, filter actions by those plants
+    if (gardenPermissions.visiblePlantIds.size > 0) {
+      return actionItems.filter(
+        (a) => !a.plantIds || a.plantIds.length === 0 || a.plantIds.some((pid) => gardenPermissions.visiblePlantIds.has(pid))
+      );
+    }
+    return [];
+  }, [actionItems, gardenPermissions]);
+
   const filteredActions = useMemo(() => {
-    let items = actionItems;
+    let items = scopedActionItems;
     // Filter by selected day if one is chosen
     if (selectedDateStr) {
       items = items.filter((a) => a.date?.startsWith(selectedDateStr));
@@ -100,7 +119,7 @@ export default function CalendarPage() {
     });
     sorted.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0));
     return sorted;
-  }, [actionItems, filterStatus, filterType, selectedDateStr]);
+  }, [scopedActionItems, filterStatus, filterType, selectedDateStr]);
 
   const actionTypes = useMemo(
     () => [...new Set(actionItems.map((a) => a.type).filter(Boolean))] as string[],
@@ -274,6 +293,7 @@ export default function CalendarPage() {
                       setSelectedDay(selectedDay === day ? null : day);
                     }}
                     onDoubleClick={() => {
+                      if (!gardenPermissions.canLogCare) return;
                       const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       openAddForm(ds);
                     }}
@@ -325,9 +345,11 @@ export default function CalendarPage() {
                     <X size={12} className="mr-0.5" /> Show all
                   </Button>
                 )}
-                <Button onClick={() => openAddForm(selectedDateStr ?? undefined)} size="sm">
-                  <Plus size={14} className="mr-1" /> Add
-                </Button>
+                {gardenPermissions.canLogCare && (
+                  <Button onClick={() => openAddForm(selectedDateStr ?? undefined)} size="sm">
+                    <Plus size={14} className="mr-1" /> Add
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -411,17 +433,23 @@ export default function CalendarPage() {
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEditForm(action)} className="p-1 rounded hover:bg-surface-container-high text-on-surface-variant/60">
-                      <Pencil size={12} />
-                    </button>
-                    {deleteConfirm === action.id ? (
-                      <button onClick={() => handleDelete(action.id)} className="p-1 rounded hover:bg-red-500/20 text-red-400">
-                        <Trash2 size={12} />
+                    {gardenPermissions.canEdit && (
+                      <button onClick={() => openEditForm(action)} className="p-1 rounded hover:bg-surface-container-high text-on-surface-variant/60">
+                        <Pencil size={12} />
                       </button>
-                    ) : (
-                      <button onClick={() => setDeleteConfirm(action.id)} className="p-1 rounded hover:bg-surface-container-high text-on-surface-variant/60">
-                        <Trash2 size={12} />
-                      </button>
+                    )}
+                    {gardenPermissions.canLogCare && (
+                      <>
+                        {deleteConfirm === action.id ? (
+                          <button onClick={() => handleDelete(action.id)} className="p-1 rounded hover:bg-red-500/20 text-red-400">
+                            <Trash2 size={12} />
+                          </button>
+                        ) : (
+                          <button onClick={() => setDeleteConfirm(action.id)} className="p-1 rounded hover:bg-surface-container-high text-on-surface-variant/60">
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -222,9 +222,7 @@ export default function WeatherPage() {
   // Auto-fetch on mount only if cache is stale or missing
   useEffect(() => {
     if (!(settingsLoaded && apiKey && !isCacheValid)) return;
-    const controller = new AbortController();
-    fetchWeather(controller.signal);
-    return () => controller.abort();
+    fetchWeather(AbortSignal.timeout(10000));
   }, [settingsLoaded, apiKey, isCacheValid, fetchWeather]);
 
   const currentWeather: ForecastItem | null = weatherData?.list?.[0] ?? null;

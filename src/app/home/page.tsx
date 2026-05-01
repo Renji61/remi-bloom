@@ -66,6 +66,10 @@ const IdentifyPlantDialog = nextDynamic(
 );
 import type { IdentifyResult } from "@/components/lab/identify-plant-dialog";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useScopedPlants } from "@/hooks/use-scoped-plants";
+import { useGardenRole } from "@/hooks/use-garden-role";
+import { useSharedGardenSync } from "@/hooks/use-shared-garden-sync";
+import { getCareEventsForPlantToday } from "@/lib/db";
 import type { CareEvent, Plant, JournalEntry, ActionItem } from "@/lib/db";
 
 // ---- Emoji & tag color presets ----
@@ -81,6 +85,7 @@ const tagColors = [
 
 export default function HomePage() {
   const currentUserId = useAppStore((s) => s.currentUserId);
+  const currentUser = useAppStore((s) => s.currentUser);
   const greenhouseName = useAppStore((s) => s.greenhouseName);
   usePageTitle(greenhouseName);
   const plants = useAppStore((s) => s.plants);
@@ -94,6 +99,11 @@ export default function HomePage() {
   const removePlantFromStore = useAppStore((s) => s.removePlant);
   const selectedPlantId = useAppStore((s) => s.selectedPlantId);
   const setSelectedPlantId = useAppStore((s) => s.setSelectedPlantId);
+
+  // Shared garden role + scope
+  const scopedPlants = useScopedPlants(plants);
+  const gardenPermissions = useGardenRole();
+  useSharedGardenSync();
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 200);
@@ -215,7 +225,7 @@ export default function HomePage() {
   }, []);
 
   const filteredPlants = useMemo(() => {
-    let list = plants;
+    let list = scopedPlants;
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter(
@@ -255,12 +265,24 @@ export default function HomePage() {
       return plantSortDirection === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [plants, debouncedSearch, locationFilter, tagFilter, needsCareFilter, lastCareByPlant, plantSortKey, plantSortDirection]);
+  }, [scopedPlants, debouncedSearch, locationFilter, tagFilter, needsCareFilter, lastCareByPlant, plantSortKey, plantSortDirection]);
 
   const logQuickCare = useCallback(
     async (plantId: string, type: "water" | "fertilize") => {
       const plant = plants.find((p) => p.id === plantId);
       if (!plant) return;
+
+      // Duplicate detection — check if someone already logged this today
+      const existing = await getCareEventsForPlantToday(plantId, type);
+      if (existing.length > 0) {
+        const lastEvent = existing[existing.length - 1];
+        if (lastEvent.performedBy && lastEvent.performedBy !== currentUser?.displayName) {
+          alert(`This action was just logged by ${lastEvent.performedBy}. Duplicate ignored.`);
+          return;
+        }
+      }
+
+      const performedByName = currentUser?.displayName ?? "Unknown";
       const event: CareEvent = {
         id: generateId(),
         userId: currentUserId ?? "",
@@ -269,6 +291,7 @@ export default function HomePage() {
         type,
         date: new Date().toISOString().split("T")[0],
         note: type === "water" ? "Quick watered" : "Quick fertilized",
+        performedBy: performedByName,
       };
       await addCareEvent(event);
       addCareEventToStore(event);
@@ -281,11 +304,12 @@ export default function HomePage() {
         plantName: plant.name,
         note: type === "water" ? "💧 Watered the plant." : "🧪 Fertilized the plant.",
         date: new Date().toISOString(),
+        performedBy: performedByName,
       };
       await addJournalEntry(journalEntry);
       addJournalEntryToStore(journalEntry);
     },
-    [plants, addCareEventToStore, addJournalEntryToStore]
+    [plants, currentUserId, currentUser, addCareEventToStore, addJournalEntryToStore]
   );
 
   const selectedPlant = useMemo(
@@ -516,12 +540,18 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
-            <Button onClick={() => openAddForm()} size="sm" className="shrink-0">
-              <Plus size={14} />
-              <span className="hidden sm:inline">Add Plant</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
+            {gardenPermissions.canAddPlants && (
+              <>
+                {gardenPermissions.canAddPlants && (
+                  <IdentifyPlantButton onClick={() => setShowIdentifyDialog(true)} />
+                )}
+                <Button onClick={() => openAddForm()} size="sm" className="shrink-0">
+                  <Plus size={14} />
+                  <span className="hidden sm:inline">Add Plant</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -699,10 +729,12 @@ export default function HomePage() {
           <p className="text-xs text-on-surface-variant/50">
             Try adjusting your search or filters
           </p>
-          <Button onClick={() => openAddForm()} className="mt-4" size="sm">
-            <Plus size={14} />
-            Add Your First Plant
-          </Button>
+          {gardenPermissions.canAddPlants && (
+            <Button onClick={() => openAddForm()} className="mt-4" size="sm">
+              <Plus size={14} />
+              Add Your First Plant
+            </Button>
+          )}
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -722,7 +754,9 @@ export default function HomePage() {
                   setSelectedPlantId(plant.id);
                   setOpenDetail(true);
                 }}
-                onEdit={() => openEditForm(plant)}
+                onEdit={gardenPermissions.canEdit ? () => openEditForm(plant) : undefined}
+                canDelete={gardenPermissions.canDeletePlants}
+                canLogCare={gardenPermissions.canLogCare}
                 index={i}
               />
             ))}
@@ -740,13 +774,15 @@ export default function HomePage() {
                 location={
                   plant.locationId ? locationMap[plant.locationId] : undefined
                 }
-                onQuickWater={() => logQuickCare(plant.id, "water")}
-                onQuickFertilize={() => logQuickCare(plant.id, "fertilize")}
+                onQuickWater={gardenPermissions.canLogCare ? () => logQuickCare(plant.id, "water") : undefined}
+                onQuickFertilize={gardenPermissions.canLogCare ? () => logQuickCare(plant.id, "fertilize") : undefined}
                 onOpenDetail={() => {
                   setSelectedPlantId(plant.id);
                   setOpenDetail(true);
                 }}
-                onEdit={() => openEditForm(plant)}
+                onEdit={gardenPermissions.canEdit ? () => openEditForm(plant) : undefined}
+                canDelete={gardenPermissions.canDeletePlants}
+                canLogCare={gardenPermissions.canLogCare}
                 index={i}
               />
             ))}
@@ -762,7 +798,11 @@ export default function HomePage() {
               {selectedPlant?.emoji} {selectedPlant?.name}
             </DialogTitle>
           </DialogHeader>
-          {selectedPlant && (
+          {selectedPlant && gardenPermissions.role !== null && !gardenPermissions.canEdit && !scopedPlants.find((p) => p.id === selectedPlant.id) ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-sm text-on-surface-variant">This plant is not in your shared scope.</p>
+            </div>
+          ) : selectedPlant && (
             <PlantDetail
               plant={selectedPlant}
               thumbnailUrl={getPlantThumbnail(selectedPlant)}
@@ -775,15 +815,15 @@ export default function HomePage() {
               careEvents={careEvents.filter(
                 (e) => e.plantId === selectedPlant.id
               )}
-              onQuickWater={() => logQuickCare(selectedPlant.id, "water")}
-              onQuickFertilize={() =>
+              onQuickWater={gardenPermissions.canLogCare ? () => logQuickCare(selectedPlant.id, "water") : undefined}
+              onQuickFertilize={gardenPermissions.canLogCare ? () =>
                 logQuickCare(selectedPlant.id, "fertilize")
-              }
-              onEdit={() => {
+              : undefined}
+              onEdit={gardenPermissions.canEdit ? () => {
                 setOpenDetail(false);
                 openEditForm(selectedPlant);
-              }}
-              onDelete={() => handleDeletePlant(selectedPlant.id)}
+              } : undefined}
+              onDelete={gardenPermissions.canDeletePlants ? () => handleDeletePlant(selectedPlant.id) : undefined}
             />
           )}
         </DialogContent>
@@ -1065,10 +1105,10 @@ function PlantDetail({
   location?: { name: string; emoji: string; description: string };
   tags: { id: string; name: string; color: string }[];
   careEvents: CareEvent[];
-  onQuickWater: () => void;
-  onQuickFertilize: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onQuickWater?: () => void;
+  onQuickFertilize?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   thumbnailUrl?: string | null;
 }) {
   return (
@@ -1117,18 +1157,22 @@ function PlantDetail({
             </p>
           </div>
           <div className="flex gap-1">
-            <button
-              onClick={onEdit}
-              className="rounded-lg p-1.5 text-on-surface-variant/60 hover:bg-surface-container-high transition-colors"
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="rounded-lg p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="rounded-lg p-1.5 text-on-surface-variant/60 hover:bg-surface-container-high transition-colors"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="rounded-lg p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         </div>
         {plant.description && (
@@ -1168,21 +1212,27 @@ function PlantDetail({
       </div>
 
       {/* Quick Actions */}
-      <div className="flex gap-2">
-        <Button onClick={onQuickWater} className="flex-1" size="sm">
-          <Droplets size={14} />
-          Log Water
-        </Button>
-        <Button
-          onClick={onQuickFertilize}
-          className="flex-1"
-          size="sm"
-          variant="secondary"
-        >
-          <FlaskConical size={14} />
-          Log Fertilize
-        </Button>
-      </div>
+      {(onQuickWater || onQuickFertilize) && (
+        <div className="flex gap-2">
+          {onQuickWater && (
+            <Button onClick={onQuickWater} className="flex-1" size="sm">
+              <Droplets size={14} />
+              Log Water
+            </Button>
+          )}
+          {onQuickFertilize && (
+            <Button
+              onClick={onQuickFertilize}
+              className="flex-1"
+              size="sm"
+              variant="secondary"
+            >
+              <FlaskConical size={14} />
+              Log Fertilize
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Care History */}
       <div>

@@ -18,6 +18,14 @@ export function useReminderTrigger() {
   const todos = useAppStore((s) => s.todos);
   const currentUserId = useAppStore((s) => s.currentUserId);
 
+  // Use refs so the polling interval doesn't reset on every array change
+  const actionItemsRef = useRef(actionItems);
+  const remindersRef = useRef(reminders);
+  const todosRef = useRef(todos);
+  actionItemsRef.current = actionItems;
+  remindersRef.current = reminders;
+  todosRef.current = todos;
+
   // Track which items have been alerted so we don't spam
   const alertedIds = useRef<Set<string>>(new Set());
   // Polling interval
@@ -50,8 +58,13 @@ export function useReminderTrigger() {
         const today = new Date().toISOString().split("T")[0];
         const { sendNotification } = await import("@/lib/notification-engine");
 
+        // Read latest values from refs
+        const items = actionItemsRef.current;
+        const rms = remindersRef.current;
+        const tds = todosRef.current;
+
         // Check due (not completed) action items
-        for (const item of actionItems) {
+        for (const item of items) {
           if (item.completed) continue;
           if (item.date > today) continue;
           if (alertedIds.current.has(item.id)) continue;
@@ -62,14 +75,14 @@ export function useReminderTrigger() {
             : "";
 
           await sendNotification(config, {
-            title: `🌱 Care Task Due: ${item.title}`,
+            title: `Care Task Due: ${item.title}`,
             body: `Task "${item.title}"${plantInfo} is due today (${item.date}${item.time ? ` at ${item.time}` : ""}).${item.note ? `\n\nNote: ${item.note}` : ""}`,
             priority: 7,
           });
         }
 
         // Check due reminders
-        for (const reminder of reminders) {
+        for (const reminder of rms) {
           if (reminder.completed) continue;
           if (reminder.date > today) continue;
           if (alertedIds.current.has(reminder.id)) continue;
@@ -80,21 +93,21 @@ export function useReminderTrigger() {
             : "";
 
           await sendNotification(config, {
-            title: `⏰ Reminder: ${reminder.title}`,
+            title: `Reminder: ${reminder.title}`,
             body: `Reminder "${reminder.title}"${plantInfo} is due today (${reminder.date}${reminder.time ? ` at ${reminder.time}` : ""}).${reminder.note ? `\n\nNote: ${reminder.note}` : ""}`,
             priority: 6,
           });
         }
 
         // Check due todos
-        for (const todo of todos) {
+        for (const todo of tds) {
           if (todo.completed) continue;
           if (todo.date > today) continue;
           if (alertedIds.current.has(todo.id)) continue;
 
           alertedIds.current.add(todo.id);
           await sendNotification(config, {
-            title: `📋 Todo Due: ${todo.title}`,
+            title: `Todo Due: ${todo.title}`,
             body: `Todo "${todo.title}" is due today (${todo.date}${todo.time ? ` at ${todo.time}` : ""}).${todo.description ? `\n\n${todo.description}` : ""}`,
             priority: 5,
           });
@@ -116,5 +129,5 @@ export function useReminderTrigger() {
         intervalRef.current = null;
       }
     };
-  }, [actionItems, reminders, todos]);
+  }, [currentUserId]);
 }

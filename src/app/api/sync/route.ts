@@ -81,8 +81,8 @@ const entityConfigs: Record<string, EntityConfig> = {
     idColumn: careEvents.id,
     ownerColumn: careEvents.userId,
     ownerKey: "userId",
-    createFields: ["plantId", "plantName", "type", "date", "note"],
-    updateFields: ["plantId", "plantName", "type", "date", "note"],
+    createFields: ["plantId", "plantName", "type", "date", "note", "performedBy"],
+    updateFields: ["plantId", "plantName", "type", "date", "note", "performedBy"],
   },
   location: {
     table: plantLocations,
@@ -116,8 +116,8 @@ const entityConfigs: Record<string, EntityConfig> = {
     idColumn: journalEntries.id,
     ownerColumn: journalEntries.userId,
     ownerKey: "userId",
-    createFields: ["plantId", "plantName", "note", "date", "photoUrl"],
-    updateFields: ["plantId", "plantName", "note", "date", "photoUrl"],
+    createFields: ["plantId", "plantName", "note", "date", "photoUrl", "performedBy"],
+    updateFields: ["plantId", "plantName", "note", "date", "photoUrl", "performedBy"],
   },
   reminder: {
     table: reminders,
@@ -250,9 +250,9 @@ const entityConfigs: Record<string, EntityConfig> = {
     idColumn: sharedGardens.id,
     ownerColumn: sharedGardens.ownerId,
     ownerKey: "ownerId",
-    createFields: ["gardenName", "code", "createdAt", "members", "sharedPlantIds"],
-    updateFields: ["gardenName", "members", "sharedPlantIds"],
-    defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [] }),
+    createFields: ["gardenName", "code", "createdAt", "members", "sharedPlantIds", "pendingInvites"],
+    updateFields: ["gardenName", "members", "sharedPlantIds", "pendingInvites"],
+    defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [], pendingInvites: [] }),
   },
 };
 

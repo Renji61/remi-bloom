@@ -11,4 +11,5 @@ export const sharedGardens = pgTable("shared_gardens", {
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
   members: jsonb("members").notNull().default([]),
   sharedPlantIds: text("shared_plant_ids").array().notNull().default([]),
+  pendingInvites: jsonb("pending_invites").notNull().default([]),
 });

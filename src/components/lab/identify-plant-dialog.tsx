@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search,
   Leaf,
@@ -37,7 +37,7 @@ import type {
   FertilizerSuggestion,
   IdentificationProgress,
 } from "@/lib/identification-manager";
-import type { ActionItem } from "@/lib/db";
+import type { ActionItem, ActionType } from "@/lib/db";
 
 export interface IdentifyResult {
   name: string;
@@ -623,7 +623,7 @@ export function IdentifyPlantDialog({
           userId: currentUserId ?? "",
           title: `${cs.label} — ${name}`,
           source: "system",
-          type: cs.type,
+          type: cs.type as ActionType,
           date: today,
           time: "",
           completed: false,
@@ -633,7 +633,7 @@ export function IdentifyPlantDialog({
           repeat: "everyXdays",
           repeatConfig: { intervalDays: cs.frequencyDays },
           snoozedUntil: null,
-          category: cs.type,
+          category: cs.type as ActionType,
           createdAt: new Date().toISOString(),
         });
       }

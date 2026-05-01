@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ImgHTMLAttributes } from "react";
+import { useState, useEffect, type ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { getImageUrl } from "@/lib/db";
 
 const ALLOWED_PROTOCOLS = ["https:", "blob:", "data:"];
 const ALLOWED_PREFIXES = ["/icons/", "/images/", "/_next/"];
@@ -12,8 +13,8 @@ function isSafeImageUrl(src: string): boolean {
     if (src.startsWith("/")) {
       return ALLOWED_PREFIXES.some((prefix) => src.startsWith(prefix));
     }
-    // Allow upload: prefix (our internal DB storage format)
-    if (src.startsWith("upload:")) return true;
+    // upload: prefix is handled by the caller — resolve to blob URL first
+    if (src.startsWith("upload:")) return false;
     // Validate absolute URLs
     const parsed = new URL(src);
     return ALLOWED_PROTOCOLS.includes(parsed.protocol);
@@ -28,8 +29,26 @@ interface SafeImageProps extends ImgHTMLAttributes<HTMLImageElement> {
 
 export function SafeImage({ src, alt, className, fallback, onError, ...props }: SafeImageProps) {
   const [loadError, setLoadError] = useState(false);
+  const [resolvedSrc, setResolvedSrc] = useState<string>("");
 
-  const safeSrc = typeof src === "string" ? src : "";
+  // Resolve upload: references to blob URLs
+  useEffect(() => {
+    if (typeof src !== "string" || !src) {
+      setResolvedSrc("");
+      return;
+    }
+    if (src.startsWith("upload:")) {
+      const imageId = src.slice("upload:".length);
+      getImageUrl(imageId).then((blobUrl) => {
+        if (blobUrl) setResolvedSrc(blobUrl);
+        else setLoadError(true);
+      });
+      return;
+    }
+    setResolvedSrc(src);
+  }, [src]);
+
+  const safeSrc = resolvedSrc;
 
   if (!safeSrc || !isSafeImageUrl(safeSrc) || loadError) {
     if (fallback !== undefined) return <>{fallback}</>;

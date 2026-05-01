@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search,
   Leaf,
@@ -31,7 +31,7 @@ import type {
   FertilizerSuggestion,
   IdentificationProgress,
 } from "@/lib/identification-manager";
-import type { ActionItem } from "@/lib/db";
+import type { ActionItem, ActionType } from "@/lib/db";
 
 // --- Step indicator ---
 
@@ -589,17 +589,17 @@ export function PlantIdentifier() {
           userId: currentUserId ?? "",
           title: `${cs.label} — ${name}`,
           source: "system",
-          type: cs.type,
+          type: cs.type as ActionType,
           date: today,
           time: "",
           completed: false,
           plantIds: [plantId],
           plantNames: [name],
-          note: cs.note || `Automated ${cs.label.toLowerCase()} schedule from identification`,
+          note: cs.note || `Automated ${(cs.label || cs.type).toLowerCase()} schedule from identification`,
           repeat: "everyXdays",
           repeatConfig: { intervalDays: cs.frequencyDays },
           snoozedUntil: null,
-          category: cs.type,
+          category: cs.type as ActionType,
           createdAt: new Date().toISOString(),
         };
         await addActionItem(actionItem);
@@ -611,7 +611,7 @@ export function PlantIdentifier() {
               ? "fertilizing"
               : cs.type === "prune"
                 ? "pruning"
-                : cs.label.toLowerCase();
+                : (cs.label || cs.type).toLowerCase();
         tasks.push(`Added ${taskLabel} reminder every ${cs.frequencyDays} days`);
       }
 

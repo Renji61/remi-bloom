@@ -26,6 +26,7 @@ export function ApiKeySettings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -60,6 +61,18 @@ export function ApiKeySettings() {
 
   const handleSave = async () => {
     if (!currentUserId) return;
+    setError(null);
+
+    // Validate API key formats
+    if (plantidKey.trim() && plantidKey.trim().length < 10) {
+      setError("Plant.id API key appears invalid (too short)");
+      return;
+    }
+    if (perenualKey.trim() && perenualKey.trim().length < 10) {
+      setError("Perenual API key appears invalid (too short)");
+      return;
+    }
+
     setSaving(true);
 
     await Promise.all([
@@ -128,6 +141,10 @@ export function ApiKeySettings() {
             <span className="text-[var(--theme-primary)]">perenual.com</span>.
           </p>
         </div>
+
+        {error && (
+          <p className="text-xs text-red-400">{error}</p>
+        )}
 
         <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? (

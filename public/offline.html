@@ -3,18 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a211f" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#e9efeB" media="(prefers-color-scheme: light)" />
   <title>Offline - REMI Bloom</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: #0e1513;
-      color: #dde4e1;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100dvh;
       padding: 24px;
+      background: #0e1513;
+      color: #dde4e1;
+    }
+    @media (prefers-color-scheme: light) {
+      body {
+        background: #f5faf7;
+        color: #181d1b;
+      }
+      .icon {
+        background: linear-gradient(135deg, #006b5f, #2dd4bf);
+      }
+      p {
+        color: #444e4a;
+      }
+      .retry-btn {
+        background: #006b5f;
+        color: #ffffff;
+      }
     }
     .container {
       text-align: center;
@@ -59,7 +77,7 @@
 </head>
 <body>
   <div class="container">
-    <div class="icon">🌱</div>
+    <div class="icon">&#x1F331;</div>
     <h1>You're Offline</h1>
     <p>REMI Bloom needs a network connection to load new content. Your locally saved data is still available.</p>
     <button class="retry-btn" onclick="window.location.reload()">

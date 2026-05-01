@@ -19,10 +19,12 @@ interface PlantListViewProps {
   lastCareEvent?: CareEvent;
   location?: PlantLocation;
   thumbnailUrl?: string | null;
-  onQuickWater: () => void;
-  onQuickFertilize: () => void;
+  onQuickWater?: () => void;
+  onQuickFertilize?: () => void;
   onOpenDetail: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
+  canDelete?: boolean;
+  canLogCare?: boolean;
   index?: number;
 }
 
@@ -35,6 +37,8 @@ export function PlantListView({
   onQuickFertilize,
   onOpenDetail,
   onEdit,
+  canDelete = true,
+  canLogCare = true,
   index = 0,
 }: PlantListViewProps) {
   const tags = useAppStore((s) => s.tags);
@@ -143,26 +147,30 @@ export function PlantListView({
 
         {/* Quick Actions */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onQuickWater();
-            }}
-            className="flex items-center justify-center rounded-lg bg-blue-500/10 p-1.5 text-blue-500 transition-colors hover:bg-blue-500/20"
-            aria-label="Quick Water"
-          >
-            <Droplets size={14} aria-hidden="true" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onQuickFertilize();
-            }}
-            className="flex items-center justify-center rounded-lg bg-emerald-500/10 p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/20"
-            aria-label="Quick Fertilize"
-          >
-            <FlaskConical size={14} aria-hidden="true" />
-          </button>
+          {canLogCare && onQuickWater && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickWater();
+              }}
+              className="flex items-center justify-center rounded-lg bg-blue-500/10 p-1.5 text-blue-500 transition-colors hover:bg-blue-500/20"
+              aria-label="Quick Water"
+            >
+              <Droplets size={14} aria-hidden="true" />
+            </button>
+          )}
+          {canLogCare && onQuickFertilize && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickFertilize();
+              }}
+              className="flex items-center justify-center rounded-lg bg-emerald-500/10 p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/20"
+              aria-label="Quick Fertilize"
+            >
+              <FlaskConical size={14} aria-hidden="true" />
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -173,16 +181,18 @@ export function PlantListView({
           >
             <Sparkles size={14} aria-hidden="true" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="flex items-center justify-center rounded-lg p-1.5 text-on-surface-variant/40 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
-            aria-label="Edit"
-          >
-            <Pencil size={12} aria-hidden="true" />
-          </button>
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="flex items-center justify-center rounded-lg p-1.5 text-on-surface-variant/40 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
+              aria-label="Edit"
+            >
+              <Pencil size={12} aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

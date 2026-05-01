@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Stage, Layer, Rect, Group, Text, Circle, Line } from "react-konva";
+import { Stage, Layer, Rect, Group, Text } from "react-konva";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/app-store";
 import { mockPlants } from "@/data/plants";
@@ -9,6 +9,22 @@ import { saveGardenCells, getGardenCellsForUser } from "@/lib/db";
 import type { GardenCell } from "@/lib/db";
 import { generateId } from "@/lib/utils";
 import { X, Move, ZoomIn, ZoomOut } from "lucide-react";
+
+// Read a CSS variable from the document root, with optional opacity
+function cssVar(name: string, opacity = 1): string {
+  if (typeof document === "undefined") return `rgba(255,255,255,${opacity})`;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!val || val === "transparent") return `rgba(255,255,255,${opacity})`;
+  // Convert hex to rgba
+  const hex = val.replace("#", "");
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${opacity})`;
+  }
+  return val;
+}
 
 const GRID_SIZE = 60;
 const COLS = 12;
@@ -307,10 +323,10 @@ export default function GardenCanvas() {
                     height={GRID_SIZE}
                     fill={
                       (row + col) % 2 === 0
-                        ? "rgba(255,255,255,0.02)"
-                        : "rgba(255,255,255,0.04)"
+                        ? cssVar("--color-surface-container-low", 0.5)
+                        : cssVar("--color-surface-container", 0.5)
                     }
-                    stroke="rgba(255,255,255,0.06)"
+                    stroke={cssVar("--color-outline-variant", 0.3)}
                     strokeWidth={0.5}
                   />
                 ))
@@ -324,7 +340,7 @@ export default function GardenCanvas() {
                   y={2}
                   text={`${col + 1}`}
                   fontSize={8}
-                  fill="rgba(255,255,255,0.15)"
+                  fill={cssVar("--color-on-surface", 0.35)}
                   fontFamily="Inter"
                 />
               ))}
@@ -335,7 +351,7 @@ export default function GardenCanvas() {
                   y={row * GRID_SIZE + 2}
                   text={String.fromCharCode(65 + row)}
                   fontSize={8}
-                  fill="rgba(255,255,255,0.15)"
+                  fill={cssVar("--color-on-surface", 0.35)}
                   fontFamily="Inter"
                 />
               ))}
@@ -354,9 +370,9 @@ export default function GardenCanvas() {
                   <Rect
                     width={GRID_SIZE}
                     height={GRID_SIZE}
-                    fill="rgba(87, 241, 219, 0.08)"
+                    fill={cssVar("--color-primary", 0.12)}
                     cornerRadius={4}
-                    stroke="rgba(87, 241, 219, 0.3)"
+                    stroke={cssVar("--color-primary", 0.4)}
                     strokeWidth={1}
                   />
                   <Text
@@ -373,7 +389,7 @@ export default function GardenCanvas() {
                     y={GRID_SIZE - 16}
                     text={plant.name.substring(0, 6)}
                     fontSize={7}
-                    fill="rgba(255,255,255,0.5)"
+                    fill={cssVar("--color-on-surface", 0.6)}
                     fontFamily="Inter"
                     wrap="none"
                   />

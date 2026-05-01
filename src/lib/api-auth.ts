@@ -29,7 +29,7 @@ export async function requireAuthUser(): Promise<AuthUser | NextResponse> {
   }
   return {
     id: session.user.id,
-    username: (session.user as any).username ?? "",
-    role: (session.user as any).role ?? "user",
+    username: session.user.username ?? "",
+    role: session.user.role ?? "user",
   };
 }

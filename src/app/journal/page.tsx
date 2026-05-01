@@ -3,6 +3,8 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useGardenRole } from "@/hooks/use-garden-role";
+import { useSharedGardenSync } from "@/hooks/use-shared-garden-sync";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -75,6 +77,9 @@ export default function JournalPage() {
   const removeProgressEntryFromStore = useAppStore((s) => s.removeProgressEntry);
   const plants = useAppStore((s) => s.plants);
   const currentUserId = useAppStore((s) => s.currentUserId);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const gardenPermissions = useGardenRole();
+  useSharedGardenSync();
   const plantMap = useMemo(() => {
     const m: Record<string, (typeof plants)[0]> = {};
     for (const p of plants) m[p.id] = p;
@@ -111,6 +116,17 @@ export default function JournalPage() {
         harvestYield: e.harvestYield,
       })),
     ];
+
+    // Filter by visible plant IDs for non-owner members
+    if (gardenPermissions.role !== null && gardenPermissions.role !== "owner") {
+      const visible = gardenPermissions.visiblePlantIds;
+      if (visible.size > 0) {
+        combined = combined.filter((e) => visible.has(e.plantId));
+      } else {
+        combined = [];
+      }
+    }
+
     if (entryFilter !== "all") {
       combined = combined.filter((e) => e.type === entryFilter);
     }
@@ -119,7 +135,7 @@ export default function JournalPage() {
       return sortOrder === "newest" ? diff : -diff;
     });
     return combined;
-  }, [journalEntries, progressEntries, entryFilter, sortOrder]);
+  }, [journalEntries, progressEntries, entryFilter, sortOrder, gardenPermissions]);
 
   // Dialog state
   const [open, setOpen] = useState(false);
@@ -302,6 +318,7 @@ export default function JournalPage() {
           note: note.trim(),
           date: new Date(`${growthDate}T12:00:00`).toISOString(),
           photoUrl: uploadedImageId ? `upload:${uploadedImageId}` : undefined,
+          performedBy: currentUser?.displayName ?? "Unknown",
         };
         await addJournalEntry(entry);
         addJournalEntryToStore(entry);
@@ -374,14 +391,18 @@ export default function JournalPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={openNewGrowth} size="sm" variant="secondary">
-            <TrendingUp size={14} />
-            Log Growth
-          </Button>
-          <Button onClick={openNewJournal} size="sm">
-            <Plus size={16} />
-            New Entry
-          </Button>
+          {gardenPermissions.canLogCare && (
+            <Button onClick={openNewGrowth} size="sm" variant="secondary">
+              <TrendingUp size={14} />
+              Log Growth
+            </Button>
+          )}
+          {gardenPermissions.canLogCare && (
+            <Button onClick={openNewJournal} size="sm">
+              <Plus size={16} />
+              New Entry
+            </Button>
+          )}
         </div>
       </div>
 
@@ -429,14 +450,18 @@ export default function JournalPage() {
               Start documenting your plant care journey
             </p>
             <div className="mt-4 flex gap-2">
-              <Button onClick={openNewJournal} size="sm">
-                <Plus size={14} />
-                First Entry
-              </Button>
-              <Button onClick={openNewGrowth} size="sm" variant="secondary">
-                <TrendingUp size={14} />
-                Log Growth
-              </Button>
+              {gardenPermissions.canLogCare && (
+                <Button onClick={openNewJournal} size="sm">
+                  <Plus size={14} />
+                  First Entry
+                </Button>
+              )}
+              {gardenPermissions.canLogCare && (
+                <Button onClick={openNewGrowth} size="sm" variant="secondary">
+                  <TrendingUp size={14} />
+                  Log Growth
+                </Button>
+              )}
             </div>
           </motion.div>
         ) : (
@@ -469,20 +494,22 @@ export default function JournalPage() {
                       index={i}
                     />
                   )}
-                  <div className="absolute right-3 top-3 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEditForm(entry)}
-                      className="rounded-lg bg-surface-container-high p-1.5 text-on-surface-variant/60 hover:bg-surface-container-higher transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(`${entry.type}:${entry.id}`)}
-                      className="rounded-lg bg-surface-container-high p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                  {gardenPermissions.canLogCare && (
+                    <div className="absolute right-3 top-3 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEditForm(entry)}
+                        className="rounded-lg bg-surface-container-high p-1.5 text-on-surface-variant/60 hover:bg-surface-container-higher transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(`${entry.type}:${entry.id}`)}
+                        className="rounded-lg bg-surface-container-high p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}

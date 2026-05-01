@@ -7,10 +7,11 @@ import { DesktopShell } from "@/components/layout/desktop-shell";
 import { WeatherFetcher } from "@/components/layout/weather-badge";
 import { useWeatherTrigger } from "@/hooks/use-weather-trigger";
 import { useReminderTrigger } from "@/hooks/use-reminder-trigger";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
 import { useSession } from "next-auth/react";
+import type { UserRole } from "@/lib/db";
 
 const AUTH_PAGES = new Set(["/login", "/register"]);
 
@@ -36,11 +37,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id && !currentUserId) {
       // Create a user-like object for the store
+      const validRole: UserRole = session.user.role === "admin" ? "admin" : "user";
       const userObj = {
         id: session.user.id,
-        username: (session.user as any).username ?? "",
+        username: session.user.username ?? "",
         displayName: session.user.name ?? "",
-        role: (session.user as any).role ?? "user",
+        role: validRole,
         email: session.user.email ?? "",
         avatar: "",
         active: true,
@@ -54,9 +56,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [status, session, currentUserId, setCurrentUser]);
 
   // Load per-user data when user is known
+  const loadingRef = useRef(false);
   useEffect(() => {
-    if (currentUserId) {
-      loadUserData(currentUserId);
+    if (currentUserId && !loadingRef.current) {
+      loadingRef.current = true;
+      loadUserData(currentUserId).finally(() => { loadingRef.current = false; });
     }
   }, [currentUserId]);
 

@@ -196,9 +196,7 @@ export function WeatherFetcher() {
 
   useEffect(() => {
     if (!(ready && apiKey && !isCacheValid)) return;
-    const controller = new AbortController();
-    fetchWeather(controller.signal);
-    return () => controller.abort();
+    fetchWeather(AbortSignal.timeout(10000));
   }, [ready, apiKey, isCacheValid, fetchWeather]);
 
   return null; // This component does not render anything

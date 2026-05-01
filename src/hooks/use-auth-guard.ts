@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/stores/app-store";
 import type { User } from "@/lib/db";
 
 async function fetchCurrentUser(): Promise<User | null> {
-  const response = await fetch("/api/profile", { credentials: "include" });
-  if (!response.ok) return null;
-  return response.json();
+  try {
+    const response = await fetch("/api/profile", { credentials: "include" });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -23,9 +27,10 @@ export function useAuthGuard(requireAdmin = false) {
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function check() {
       if (currentUser) {
-        // Already authenticated
         if (requireAdmin && currentUser.role !== "admin") {
           router.replace("/home");
         }
@@ -33,6 +38,7 @@ export function useAuthGuard(requireAdmin = false) {
       }
 
       const session = await fetchCurrentUser();
+      if (cancelled) return;
       if (session) {
         setCurrentUser(session);
         if (requireAdmin && session.role !== "admin") {
@@ -42,6 +48,10 @@ export function useAuthGuard(requireAdmin = false) {
         router.replace("/login");
       }
     }
-    check();
+
+    check().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser, setCurrentUser, router, requireAdmin]);
 }

@@ -20,10 +20,12 @@ interface PlantCardProps {
   lastCareEvent?: CareEvent;
   location?: PlantLocation;
   thumbnailUrl?: string | null;
-  onQuickWater: () => void;
-  onQuickFertilize: () => void;
+  onQuickWater?: () => void;
+  onQuickFertilize?: () => void;
   onOpenDetail: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
+  canDelete?: boolean;
+  canLogCare?: boolean;
   index?: number;
 }
 
@@ -36,6 +38,8 @@ export function PlantCard({
   onQuickFertilize,
   onOpenDetail,
   onEdit,
+  canDelete = true,
+  canLogCare = true,
   index = 0,
 }: PlantCardProps) {
   const tags = useAppStore((s) => s.tags);
@@ -100,15 +104,17 @@ export function PlantCard({
               <span className="text-[18px] font-bold tabular-nums text-on-surface-variant/40">
                 {getRelativeTime(dateForAge)}
               </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                className="rounded-lg p-1 text-on-surface-variant/40 hover:bg-surface-container-high hover:text-on-surface-variant transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <Pencil size={10} />
-              </button>
+              {onEdit && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                  className="rounded-lg p-1 text-on-surface-variant/40 hover:bg-surface-container-high hover:text-on-surface-variant transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                >
+                  <Pencil size={10} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -158,26 +164,30 @@ export function PlantCard({
 
           {/* Quick Actions */}
           <div className="mt-2 flex gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickWater();
-              }}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-500/10 px-2 py-1.5 text-[10px] font-semibold text-blue-500 transition-colors hover:bg-blue-500/20"
-            >
-              <Droplets size={12} />
-              Water
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickFertilize();
-              }}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold text-emerald-500 transition-colors hover:bg-emerald-500/20"
-            >
-              <FlaskConical size={12} />
-              Fertilize
-            </button>
+            {canLogCare && onQuickWater && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickWater();
+                }}
+                className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-500/10 px-2 py-1.5 text-[10px] font-semibold text-blue-500 transition-colors hover:bg-blue-500/20"
+              >
+                <Droplets size={12} />
+                Water
+              </button>
+            )}
+            {canLogCare && onQuickFertilize && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickFertilize();
+                }}
+                className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold text-emerald-500 transition-colors hover:bg-emerald-500/20"
+              >
+                <FlaskConical size={12} />
+                Fertilize
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();

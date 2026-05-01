@@ -2,23 +2,40 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL environment variable is required. " +
+    "Set it to your PostgreSQL connection string, e.g.: " +
+    "postgres://remi_bloom:password@localhost:5432/remi_bloom"
+  );
+}
 
 let client: postgres.Sql | null = null;
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb(): ReturnType<typeof drizzle<typeof schema>> {
   if (!_db) {
-    client = postgres(connectionString, { max: 10, prepare: false });
+    client = postgres(connectionString as string, {
+      max: 10,
+      prepare: false,
+      max_lifetime: 60 * 30, // 30 minutes
+      idle_timeout: 30, // 30 seconds
+    });
     _db = drizzle(client, { schema });
   }
   return _db;
 }
 
 export async function runMigrations() {
-  const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-  const db = getDb();
-  await migrate(db, { migrationsFolder: "src/db/migrations" });
+  try {
+    const { migrate } = await import("drizzle-orm/postgres-js/migrator");
+    const db = getDb();
+    await migrate(db, { migrationsFolder: "src/db/migrations" });
+  } catch (error) {
+    console.error("Database migration failed:", error);
+    throw error;
+  }
 }
 
 // Lazily-initialized singleton for direct import

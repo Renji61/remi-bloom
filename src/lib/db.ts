@@ -26,6 +26,7 @@ export interface CareEvent {
   type: "water" | "fertilize" | "repot" | "prune" | "other";
   date: string;
   note: string;
+  performedBy: string;
 }
 
 export interface PlantLocation {
@@ -78,6 +79,7 @@ export interface JournalEntry {
   note: string;
   date: string;
   photoUrl?: string;
+  performedBy?: string;
 }
 
 export interface AppSettings {
@@ -141,6 +143,23 @@ export interface ProgressEntry {
   createdAt: string;
 }
 
+export type GardenScope = "full" | "location" | "collection";
+
+export interface GardenScopeConfig {
+  type: GardenScope;
+  /** For "location" scope: the location IDs the member can see */
+  locationIds?: string[];
+  /** For "collection" scope: the plant IDs the member can see */
+  plantIds?: string[];
+}
+
+export interface PendingInvite {
+  code: string;
+  role: "caretaker" | "observer";
+  scope: GardenScopeConfig;
+  createdAt: string;
+}
+
 export interface SharedGarden {
   id: string;
   ownerId: string;
@@ -150,13 +169,18 @@ export interface SharedGarden {
   members: SharedMember[];
   /** Plant data shared with this garden — array of plant ids */
   sharedPlantIds: string[];
+  /** Pending invites with role/scope encoded */
+  pendingInvites: PendingInvite[];
 }
 
 export interface SharedMember {
   id: string;
   name: string;
-  role: "owner" | "editor" | "viewer";
+  role: "owner" | "caretaker" | "observer";
+  scope: GardenScopeConfig;
   addedAt: string;
+  /** The userId who invited this member */
+  invitedBy: string;
 }
 
 export interface UploadedImage {
@@ -810,6 +834,18 @@ export async function getCareEventsForPlant(
 
 export async function getAllCareEvents(): Promise<CareEvent[]> {
   return db.careEvents.orderBy("date").reverse().toArray();
+}
+
+export async function getCareEventsForPlantToday(
+  plantId: string,
+  type: string
+): Promise<CareEvent[]> {
+  const today = new Date().toISOString().split("T")[0];
+  return db.careEvents
+    .where("plantId")
+    .equals(plantId)
+    .filter((e) => e.date === today && e.type === type)
+    .toArray();
 }
 
 // Locations
