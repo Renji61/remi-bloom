@@ -21,7 +21,10 @@ COPY src ./src
 
 # The build does not need a real database connection;
 # drizzle.config.ts is only used by drizzle-kit at dev time, not by next build
+# Next.js 15 may execute route handlers during static data collection; provide a
+# placeholder DATABASE_URL so that db/index.ts does not throw. It will not be used.
 ENV NODE_ENV=production
+ENV DATABASE_URL=postgres://build:dummy@localhost:5432/build
 RUN npm run build
 
 # Stage 3: Production
