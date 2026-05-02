@@ -38,6 +38,7 @@ import {
   deleteTodo,
 } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
+import { computeNextDate } from "@/lib/repeat-utils";
 
 type NotificationItem = {
   id: string;
@@ -152,8 +153,34 @@ export default function NotificationsPage() {
   const handleComplete = async (item: NotificationItem) => {
     if (item.type === "action") {
       const origId = item.id.replace("action:", "");
-      await updateActionItem({ ...actionItems.find((a) => a.id === origId)!, completed: true, snoozedUntil: null });
-      updateActionItemInStore({ ...actionItems.find((a) => a.id === origId)!, completed: true, snoozedUntil: null });
+      const action = actionItems.find((a) => a.id === origId);
+      if (!action) return;
+
+      if (action.repeat !== "none") {
+        // Recurring action: compute next due date instead of marking completed
+        const nextDate = computeNextDate(
+          action.repeat,
+          action.repeatConfig,
+          action.date
+        );
+        if (nextDate) {
+          await updateActionItem({
+            ...action,
+            date: nextDate,
+            notificationSent: false,
+          });
+          updateActionItemInStore({
+            ...action,
+            date: nextDate,
+            notificationSent: false,
+          });
+          return;
+        }
+      }
+
+      // Non-recurring: mark completed
+      await updateActionItem({ ...action, completed: true, snoozedUntil: null });
+      updateActionItemInStore({ ...action, completed: true, snoozedUntil: null });
     } else if (item.type === "reminder") {
       const origId = item.id.replace("reminder:", "");
       await updateReminder({ ...reminders.find((r) => r.id === origId)!, completed: true });

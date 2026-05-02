@@ -12,6 +12,7 @@ export const todos = pgTable("todos", {
   time: text("time").default(""),
   reminderEnabled: boolean("reminder_enabled").default(false),
   completed: boolean("completed").notNull().default(false),
+  notificationSent: boolean("notification_sent").notNull().default(false),
   category: text("category", {
     enum: ["general", "watering", "planting", "harvesting", "maintenance"],
   })

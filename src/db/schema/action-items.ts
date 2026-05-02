@@ -17,6 +17,7 @@ export const actionItems = pgTable("action_items", {
   date: timestamp("date", { mode: "string" }).notNull(),
   time: text("time").default(""),
   completed: boolean("completed").notNull().default(false),
+  notificationSent: boolean("notification_sent").notNull().default(false),
   plantIds: text("plant_ids").array().default([]),
   plantNames: text("plant_names").array().default([]),
   note: text("note").default(""),

@@ -22,5 +22,6 @@ export const reminders = pgTable("reminders", {
   repeatInterval: integer("repeat_interval").default(1),
   note: text("note").default(""),
   completed: boolean("completed").notNull().default(false),
+  notificationSent: boolean("notification_sent").notNull().default(false),
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
 });

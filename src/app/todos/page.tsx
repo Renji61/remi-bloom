@@ -162,6 +162,7 @@ export default function TodosPage() {
         time: form.time,
         reminderEnabled: form.reminderEnabled,
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString().split("T")[0],
       };
       await addTodoDb(newTodo);

@@ -126,6 +126,7 @@ const defaultReminder: Omit<Reminder, "id" | "createdAt"> = {
   repeatInterval: 1,
   note: "",
   completed: false,
+  notificationSent: false,
 };
 
 export default function RemindersPage() {
@@ -167,6 +168,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Water thoroughly until it drains from the bottom. Let soil dry slightly between waterings.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -182,6 +184,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Use diluted liquid fertilizer at half strength.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -197,6 +200,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Mist in the morning so leaves dry before evening.",
         completed: true,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -212,6 +216,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Move to a pot 2 inches larger. Use well-draining potting mix.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -227,6 +232,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Wipe leaves gently with a damp cloth to remove dust.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -242,6 +248,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Sow seeds 1/4 inch deep in seed-starting mix. Keep moist and warm.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -257,6 +264,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Harden off seedlings before transplanting outdoors.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -272,6 +280,7 @@ export default function RemindersPage() {
         repeatInterval: 14,
         note: "Bottom water only when soil is completely dry.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -287,6 +296,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Use orchid-specific fertilizer. Water first, then fertilize.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
       {
@@ -302,6 +312,7 @@ export default function RemindersPage() {
         repeatInterval: 1,
         note: "Mist thoroughly, ensuring good air circulation afterward.",
         completed: false,
+        notificationSent: false,
         createdAt: new Date().toISOString(),
       },
     ];
@@ -364,6 +375,7 @@ export default function RemindersPage() {
       repeatInterval: r.repeatInterval,
       note: r.note,
       completed: r.completed,
+      notificationSent: r.notificationSent,
     });
     setShowAddDialog(true);
   }
@@ -405,7 +417,26 @@ export default function RemindersPage() {
   }
 
   async function toggleComplete(r: Reminder) {
-    const updated: Reminder = { ...r, completed: !r.completed };
+    if (r.completed) {
+      const updated: Reminder = { ...r, completed: false };
+      updateInStore(updated);
+      await updateReminderDb(updated).catch(() => {});
+      return;
+    }
+
+    if (r.repeat !== "none") {
+      // Compute next date for recurring reminders
+      const intervalMs = (r.repeatInterval || 1) * 86400000;
+      const nextDate = new Date(new Date(r.date + "T00:00:00").getTime() + intervalMs)
+        .toISOString()
+        .split("T")[0];
+      const updated: Reminder = { ...r, date: nextDate, notificationSent: false };
+      updateInStore(updated);
+      await updateReminderDb(updated).catch(() => {});
+      return;
+    }
+
+    const updated: Reminder = { ...r, completed: true };
     updateInStore(updated);
     await updateReminderDb(updated).catch(() => {});
   }

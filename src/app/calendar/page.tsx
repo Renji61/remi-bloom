@@ -214,6 +214,7 @@ export default function CalendarPage() {
         date: formDate,
         time: formTime,
         completed: editingAction?.completed || false,
+        notificationSent: editingAction?.notificationSent || false,
         plantIds: formPlantId && formPlantId !== "none" ? [formPlantId] : [],
         plantNames: formPlantId && formPlantId !== "none"
           ? [plants.find((p) => p.id === formPlantId)?.name || ""]
@@ -244,7 +245,27 @@ export default function CalendarPage() {
   };
 
   const toggleComplete = async (action: ActionItem) => {
-    await updateActionItem({ ...action, completed: !action.completed });
+    if (action.completed) {
+      // Un-completing: just toggle back
+      await updateActionItem({ ...action, completed: false });
+      return;
+    }
+
+    // Completing a recurring action — compute the next due date
+    if (action.repeat !== "none") {
+      const nextDate = computeNextDate(action.repeat, action.repeatConfig, action.date);
+      if (nextDate) {
+        await updateActionItem({
+          ...action,
+          date: nextDate,
+          notificationSent: false,
+        });
+        return;
+      }
+    }
+
+    // Non-recurring: just mark completed
+    await updateActionItem({ ...action, completed: true, notificationSent: false });
   };
 
   return (

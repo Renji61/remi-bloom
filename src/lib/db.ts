@@ -112,6 +112,7 @@ export interface Reminder {
   repeatInterval: number;
   note: string;
   completed: boolean;
+  notificationSent: boolean;
   createdAt: string;
 }
 
@@ -124,6 +125,7 @@ export interface Todo {
   time: string;
   reminderEnabled: boolean;
   completed: boolean;
+  notificationSent: boolean;
   category: "general" | "watering" | "planting" | "harvesting" | "maintenance";
   createdAt: string;
 }
@@ -270,6 +272,7 @@ export interface ActionItem {
   date: string;
   time: string;
   completed: boolean;
+  notificationSent: boolean;
   plantIds: string[];
   plantNames: string[];
   note: string;
