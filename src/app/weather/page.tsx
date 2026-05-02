@@ -19,6 +19,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
+import { CitySearch, type CityResult } from "@/components/settings/city-search";
 import { useAppStore } from "@/stores/app-store";
 import { getUserSetting, setUserSetting } from "@/lib/db";
 
@@ -122,6 +123,33 @@ export default function WeatherPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // City search state
+  const [selectedCity, setSelectedCity] = useState<CityResult | null>(null);
+  const [savingCity, setSavingCity] = useState(false);
+  const [citySaved, setCitySaved] = useState(false);
+
+  const handleCityChange = (city: CityResult | null) => {
+    setSelectedCity(city);
+  };
+
+  const handleCitySave = async () => {
+    if (!currentUserId || !selectedCity) return;
+    setSavingCity(true);
+    await Promise.all([
+      setUserSetting(currentUserId, "weatherLocation", selectedCity.display),
+      setUserSetting(currentUserId, "weatherLat", String(selectedCity.lat)),
+      setUserSetting(currentUserId, "weatherLon", String(selectedCity.lon)),
+    ]);
+    setWeatherLat(String(selectedCity.lat));
+    setWeatherLon(String(selectedCity.lon));
+    setLocation(selectedCity.display);
+    setSavingCity(false);
+    setCitySaved(true);
+    setTimeout(() => setCitySaved(false), 2000);
+    // Re-fetch weather for the new location
+    fetchWeather();
+  };
 
   // Forecast alert rule settings
   const [tempAboveEnabled, setLocalTempAbove] = useState(false);
@@ -252,6 +280,52 @@ export default function WeatherPage() {
           </Button>
         </div>
       </div>
+
+      {/* City Location Picker — always visible when settings are loaded */}
+      {settingsLoaded && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-[var(--theme-primary)]/60" />
+              <span className="text-xs font-semibold text-on-surface-variant/80">
+                Location
+              </span>
+            </div>
+            <CitySearch
+              apiKey={apiKey ?? ""}
+              value={selectedCity?.display ?? location}
+              onChange={handleCityChange}
+              placeholder="Search for a city..."
+            />
+            {selectedCity && (
+              <div className="flex items-center gap-2 rounded-xl bg-surface-container/50 px-3 py-2">
+                <MapPin size={12} className="text-[var(--theme-primary)]/60" />
+                <span className="text-xs text-on-surface-variant/70">
+                  <span className="font-medium text-on-surface">{selectedCity.name}</span>
+                  {" — "}
+                  {selectedCity.lat.toFixed(2)}°N, {selectedCity.lon.toFixed(2)}°E
+                </span>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={handleCitySave}
+                disabled={savingCity || !selectedCity}
+              >
+                {savingCity ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : citySaved ? (
+                  <MapPin size={14} />
+                ) : (
+                  <MapPin size={14} />
+                )}
+                {citySaved ? "Saved!" : "Set Location"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!settingsLoaded ? (
         <div className="flex items-center justify-center py-16">
