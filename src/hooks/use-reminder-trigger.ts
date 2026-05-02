@@ -31,6 +31,18 @@ export function useReminderTrigger() {
   // Polling interval
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /** Returns current local time as "HH:MM" for time-of-day comparison. */
+  function currentLocalHHMM(): string {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+
+  /** Returns true if the scheduled time (HH:MM) has been reached or passed. */
+  function isTimeReached(scheduledTime: string | undefined | null, nowHHMM: string): boolean {
+    if (!scheduledTime) return true; // no time set — fire on date match
+    return scheduledTime <= nowHHMM;
+  }
+
   useEffect(() => {
     async function checkAndAlert() {
       try {
@@ -56,6 +68,7 @@ export function useReminderTrigger() {
         };
 
         const today = new Date().toISOString().split("T")[0];
+        const nowHHMM = currentLocalHHMM();
         const { sendNotification } = await import("@/lib/notification-engine");
 
         // Read latest values from refs
@@ -67,6 +80,7 @@ export function useReminderTrigger() {
         for (const item of items) {
           if (item.completed) continue;
           if (item.date > today) continue;
+          if (!isTimeReached(item.time, nowHHMM)) continue;
           if (alertedIds.current.has(item.id)) continue;
 
           alertedIds.current.add(item.id);
@@ -85,6 +99,7 @@ export function useReminderTrigger() {
         for (const reminder of rms) {
           if (reminder.completed) continue;
           if (reminder.date > today) continue;
+          if (!isTimeReached(reminder.time, nowHHMM)) continue;
           if (alertedIds.current.has(reminder.id)) continue;
 
           alertedIds.current.add(reminder.id);
@@ -103,6 +118,7 @@ export function useReminderTrigger() {
         for (const todo of tds) {
           if (todo.completed) continue;
           if (todo.date > today) continue;
+          if (!isTimeReached(todo.time, nowHHMM)) continue;
           if (alertedIds.current.has(todo.id)) continue;
 
           alertedIds.current.add(todo.id);
