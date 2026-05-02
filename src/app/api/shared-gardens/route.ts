@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     createdAt: body.createdAt ?? new Date().toISOString(),
     members: body.members ?? [],
     sharedPlantIds: body.sharedPlantIds ?? [],
+    pendingInvites: body.pendingInvites ?? [],
   };
 
   await db.insert(sharedGardens).values(garden);

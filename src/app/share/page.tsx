@@ -236,6 +236,18 @@ export default function SharePage() {
       ],
     };
 
+    // Write-through to the server so other users can look up the invite code immediately
+    try {
+      await fetch("/api/shared-gardens", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newGarden),
+      });
+    } catch {
+      // Offline: the sync queue will propagate the garden later
+    }
+
     await addSharedGarden(newGarden);
     addGardenToStore(newGarden);
     setGardenName("");
