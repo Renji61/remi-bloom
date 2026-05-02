@@ -8,6 +8,13 @@
       "when": 1777475475590,
       "tag": "0000_breezy_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777726299173,
+      "tag": "0001_add_pending_invites",
+      "breakpoints": true
     }
   ]
 }

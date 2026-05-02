@@ -4,14 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAppStore } from "@/stores/app-store";
-import { Settings, Info, Cloud, DollarSign, Key, Shield } from "lucide-react";
+import { Settings, Info, DollarSign, Key, Shield } from "lucide-react";
 import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
 import { ThemePicker } from "@/components/settings/theme-picker";
 import { GreenhouseNameSettings } from "@/components/settings/greenhouse-name-settings";
 import { FaviconSettings } from "@/components/settings/favicon-settings";
 import { CurrencySettings } from "@/components/settings/currency-settings";
 import { DataSettings } from "@/components/settings/data-settings";
-import { WeatherConfig } from "@/components/settings/weather-config";
 import { NotificationSettings } from "@/components/settings/notification-settings";
 import { ApiKeySettings } from "@/components/settings/api-key-settings";
 import { RegistrationSettings } from "@/components/settings/registration-settings";
@@ -40,7 +39,6 @@ export default function SettingsPage() {
           <TabsTrigger value="notifications" className="shrink-0 sm:flex-1">Notifications</TabsTrigger>
           <TabsTrigger value="apikeys" className="shrink-0 sm:flex-1">API Keys</TabsTrigger>
           <TabsTrigger value="currency" className="shrink-0 sm:flex-1">Currency</TabsTrigger>
-          <TabsTrigger value="weather" className="shrink-0 sm:flex-1">Weather</TabsTrigger>
           {isAdmin && <TabsTrigger value="server" className="shrink-0 sm:flex-1">Registration</TabsTrigger>}
           <TabsTrigger value="data" className="shrink-0 sm:flex-1">Data</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 sm:flex-1">About</TabsTrigger>
@@ -66,10 +64,6 @@ export default function SettingsPage() {
 
         <TabsContent value="currency">
           <CurrencySettings />
-        </TabsContent>
-
-        <TabsContent value="weather">
-          <WeatherConfig />
         </TabsContent>
 
         {isAdmin && (

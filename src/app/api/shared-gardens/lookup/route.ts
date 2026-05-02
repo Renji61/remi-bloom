@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { sharedGardens } from "@/db/schema/shared-gardens";
-import { eq, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
@@ -41,16 +41,10 @@ export async function GET(request: NextRequest) {
           gardenName: sharedGardens.gardenName,
           members: sharedGardens.members,
           createdAt: sharedGardens.createdAt,
-          pendingInvites: sharedGardens.pendingInvites,
           sharedPlantIds: sharedGardens.sharedPlantIds,
         })
         .from(sharedGardens)
-        .where(
-          or(
-            eq(sharedGardens.code, normalizedCode),
-            sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}::jsonb`
-          )
-        )
+        .where(eq(sharedGardens.code, normalizedCode))
         .then((rows) => rows[0]);
     } catch (queryErr) {
       console.error("Database query failed in garden lookup:", queryErr);
@@ -77,7 +71,6 @@ export async function GET(request: NextRequest) {
 
     const memberCount = (garden.members as any[])?.length ?? 0;
     const sharedPlantIds = (garden.sharedPlantIds as string[]) ?? [];
-    const pendingInvites = (garden.pendingInvites as any[]) ?? [];
 
     return NextResponse.json({
       id: garden.id,
@@ -86,12 +79,6 @@ export async function GET(request: NextRequest) {
       createdAt: garden.createdAt,
       isCurrentUserMember,
       sharedPlantIds,
-      hasPendingInvites: pendingInvites.length > 0,
-      pendingInvites: pendingInvites.map((inv: any) => ({
-        code: inv.code,
-        role: inv.role,
-        scope: inv.scope,
-      })),
     });
   } catch (err) {
     console.error("Unexpected error in shared-gardens lookup:", err);

@@ -13,7 +13,15 @@ export async function GET() {
     const db = getDb();
     // Gardens where user is owner OR member
     const result = await db
-      .select()
+      .select({
+        id: sharedGardens.id,
+        ownerId: sharedGardens.ownerId,
+        gardenName: sharedGardens.gardenName,
+        code: sharedGardens.code,
+        createdAt: sharedGardens.createdAt,
+        members: sharedGardens.members,
+        sharedPlantIds: sharedGardens.sharedPlantIds,
+      })
       .from(sharedGardens)
       .where(
         or(
@@ -61,7 +69,6 @@ export async function POST(request: NextRequest) {
       createdAt: body.createdAt ?? new Date().toISOString(),
       members: body.members ?? [],
       sharedPlantIds: body.sharedPlantIds ?? [],
-      pendingInvites: body.pendingInvites ?? [],
     };
 
     // Use upsert: if the garden ID already exists (e.g. from a previous partial
@@ -80,7 +87,6 @@ export async function POST(request: NextRequest) {
           code: garden.code,
           members: garden.members,
           sharedPlantIds: garden.sharedPlantIds,
-          pendingInvites: garden.pendingInvites,
         })
         .where(eq(sharedGardens.id, garden.id));
     } else {
@@ -119,7 +125,15 @@ export async function PUT(request: NextRequest) {
     const db = getDb();
 
     const existing = await db
-      .select()
+      .select({
+        id: sharedGardens.id,
+        ownerId: sharedGardens.ownerId,
+        gardenName: sharedGardens.gardenName,
+        code: sharedGardens.code,
+        createdAt: sharedGardens.createdAt,
+        members: sharedGardens.members,
+        sharedPlantIds: sharedGardens.sharedPlantIds,
+      })
       .from(sharedGardens)
       .where(
         and(eq(sharedGardens.id, body.id), eq(sharedGardens.ownerId, userId))
@@ -143,7 +157,15 @@ export async function PUT(request: NextRequest) {
       .where(and(eq(sharedGardens.id, body.id), eq(sharedGardens.ownerId, userId)));
 
     const updated = await db
-      .select()
+      .select({
+        id: sharedGardens.id,
+        ownerId: sharedGardens.ownerId,
+        gardenName: sharedGardens.gardenName,
+        code: sharedGardens.code,
+        createdAt: sharedGardens.createdAt,
+        members: sharedGardens.members,
+        sharedPlantIds: sharedGardens.sharedPlantIds,
+      })
       .from(sharedGardens)
       .where(and(eq(sharedGardens.id, body.id), eq(sharedGardens.ownerId, userId)))
       .then((r) => r[0]);

@@ -191,9 +191,9 @@ const entityConfigs: Record<string, EntityConfig> = {
     idColumn: sharedGardens.id,
     ownerColumn: sharedGardens.ownerId,
     ownerKey: "ownerId",
-    createFields: ["gardenName", "code", "createdAt", "members", "sharedPlantIds", "pendingInvites"],
-    updateFields: ["gardenName", "code", "members", "sharedPlantIds", "pendingInvites"],
-    defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [], pendingInvites: [] }),
+    createFields: ["gardenName", "code", "createdAt", "members", "sharedPlantIds"],
+    updateFields: ["gardenName", "code", "members", "sharedPlantIds"],
+    defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [] }),
   },
   auditLog: {
     table: auditLogs,
@@ -260,9 +260,15 @@ async function hasWriteAccess(db: any, config: EntityConfig, id: string, userId:
   if (config.table === plants) targetPlantId = id;
   else if (record.plantId) targetPlantId = record.plantId;
   if (targetPlantId) {
-    const gardens = await db.select().from(sharedGardens).where(
-      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
-    );
+    const gardens = await db
+      .select({
+        id: sharedGardens.id,
+        sharedPlantIds: sharedGardens.sharedPlantIds,
+      })
+      .from(sharedGardens)
+      .where(
+        sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
+      );
     const sharedPlantIds = new Set(gardens.flatMap((g: any) => g.sharedPlantIds || []));
     if (sharedPlantIds.has(targetPlantId)) return true;
   }
@@ -335,12 +341,23 @@ export async function GET() {
   const db = getDb();
 
   // Fetch shared gardens first to determine which plants are shared with this user
-  const userGardens = await db.select().from(sharedGardens).where(
-    or(
-      eq(sharedGardens.ownerId, userId),
-      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
-    )
-  );
+  const userGardens = await db
+    .select({
+      id: sharedGardens.id,
+      ownerId: sharedGardens.ownerId,
+      gardenName: sharedGardens.gardenName,
+      code: sharedGardens.code,
+      createdAt: sharedGardens.createdAt,
+      members: sharedGardens.members,
+      sharedPlantIds: sharedGardens.sharedPlantIds,
+    })
+    .from(sharedGardens)
+    .where(
+      or(
+        eq(sharedGardens.ownerId, userId),
+        sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
+      )
+    );
   const sharedPlantIds = [...new Set(userGardens.flatMap(g => g.sharedPlantIds || []))];
 
   const [

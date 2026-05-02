@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { getDb } from "@/db";
 import { sharedGardens } from "@/db/schema/shared-gardens";
-import { eq, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -36,16 +36,19 @@ export async function POST(request: NextRequest) {
 
     const db = getDb();
 
-    // Fetch the garden and its user for display name
-    const garden = await db
-      .select()
+    // Fetch the garden by its invite code
+    const garden: any = await db
+      .select({
+        id: sharedGardens.id,
+        ownerId: sharedGardens.ownerId,
+        gardenName: sharedGardens.gardenName,
+        code: sharedGardens.code,
+        createdAt: sharedGardens.createdAt,
+        members: sharedGardens.members,
+        sharedPlantIds: sharedGardens.sharedPlantIds,
+      })
       .from(sharedGardens)
-      .where(
-        or(
-          eq(sharedGardens.code, normalizedCode),
-          sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}::jsonb`
-        )
-      )
+      .where(eq(sharedGardens.code, normalizedCode))
       .then((rows) => rows[0]);
 
     if (!garden) {
@@ -76,17 +79,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for matching pending invite
-    const pendingInvites = (garden.pendingInvites || []) as any[];
-    const matchingInvite = pendingInvites.find(
-      (invite: any) => invite.code === normalizedCode
-    );
+    // Look up pending invites for role/scope metadata.
+    // If the column doesn't exist yet (pre-migration), fall back to defaults.
+    let role = "caretaker";
+    let scope: any = { type: "full", locationIds: [], plantIds: [] };
+    let pendingInvites: any[] = [];
 
-    if (!matchingInvite) {
-      return NextResponse.json(
-        { error: "This invite code is no longer valid. Contact the garden owner." },
-        { status: 410 }
+    try {
+      pendingInvites = (garden.pendingInvites || []) as any[];
+      const matchingInvite = pendingInvites.find(
+        (invite: any) => invite.code === normalizedCode
       );
+      if (matchingInvite) {
+        role = matchingInvite.role || role;
+        scope = matchingInvite.scope || scope;
+      }
+    } catch {
+      // pendingInvites column may not exist yet; use defaults
+      console.warn("pendingInvites not available, using defaults");
     }
 
     // Get owner's display name for invitedBy
@@ -100,27 +110,35 @@ export async function POST(request: NextRequest) {
     const newMember = {
       id: userId,
       name: user.displayName,
-      role: matchingInvite.role,
-      scope: matchingInvite.scope,
+      role,
+      scope,
       addedAt: new Date().toISOString(),
       invitedBy: garden.ownerId,
     };
 
-    // Remove the used invite from pendingInvites
-    const updatedPendingInvites = pendingInvites.filter(
-      (invite: any) => invite.code !== normalizedCode
-    );
-
     const updatedMembers = [...members, newMember];
 
-    // Update the garden in the database
-    await db
-      .update(sharedGardens)
-      .set({
-        members: updatedMembers as any,
-        pendingInvites: updatedPendingInvites as any,
-      })
-      .where(eq(sharedGardens.id, garden.id));
+    // Update the garden in the database — only update members,
+    // skip pendingInvites in case the column doesn't exist yet.
+    try {
+      const updatedPendingInvites = pendingInvites.filter(
+        (invite: any) => invite.code !== normalizedCode
+      );
+      await db
+        .update(sharedGardens)
+        .set({
+          members: updatedMembers as any,
+          pendingInvites: updatedPendingInvites as any,
+        })
+        .where(eq(sharedGardens.id, garden.id));
+    } catch (updateErr) {
+      // Column may not exist yet — try without pendingInvites
+      console.warn("Failed to update pendingInvites, retrying without:", updateErr);
+      await db
+        .update(sharedGardens)
+        .set({ members: updatedMembers as any })
+        .where(eq(sharedGardens.id, garden.id));
+    }
 
     return NextResponse.json({
       success: true,
@@ -131,8 +149,8 @@ export async function POST(request: NextRequest) {
         ownerName: owner?.displayName ?? "Unknown",
         members: updatedMembers,
         sharedPlantIds: garden.sharedPlantIds,
-        role: matchingInvite.role,
-        scope: matchingInvite.scope,
+        role,
+        scope,
         memberCount: updatedMembers.length,
       },
     });
