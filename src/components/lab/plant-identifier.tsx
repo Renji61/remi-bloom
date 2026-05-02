@@ -32,6 +32,7 @@ import type {
   IdentificationProgress,
 } from "@/lib/identification-manager";
 import type { ActionItem, ActionType } from "@/lib/db";
+import { buildRichDescription } from "@/lib/build-rich-description";
 
 // --- Step indicator ---
 
@@ -571,11 +572,11 @@ export function PlantIdentifier() {
         userId: currentUserId ?? "",
         name,
         scientificName: sciName,
-        description: `🌿 ${identificationResult.species.name || identificationResult.species.scientificName || "Auto-identified plant"}`,
+        description: buildRichDescription(identificationResult),
         emoji: "🌿",
         imageUrl,
         createdAt: new Date().toISOString(),
-        plantedDate: null,
+        plantedDate: today,
         locationId: null,
         tags: [],
       };

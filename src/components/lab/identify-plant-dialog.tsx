@@ -32,6 +32,7 @@ import { IdentificationManager } from "@/lib/identification-manager";
 import { uploadImage } from "@/lib/db";
 import { generateId } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { buildRichDescription } from "@/lib/build-rich-description";
 import type {
   IdentificationResult,
   CareScheduleSuggestion,
@@ -45,6 +46,7 @@ export interface IdentifyResult {
   scientificName: string;
   description: string;
   imageUrl: string;
+  plantedDate: string;
   careTasks: ActionItem[];
 }
 
@@ -606,21 +608,8 @@ export function IdentifyPlantDialog({
         }
       }
 
-      // Build description from identification data
-      const careLines: string[] = [];
-      if (identificationResult.sunlightNeeds.length > 0) {
-        careLines.push(`☀️ Light: ${identificationResult.sunlightNeeds.join(", ")}`);
-      }
-      for (const cs of identificationResult.careSchedules) {
-        const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;
-        careLines.push(`${cs.label}: ${freq}`);
-      }
-      if (identificationResult.fertilizers.length > 0) {
-        careLines.push(`🧪 Recommended fertilizer: ${identificationResult.fertilizers.map((f) => f.name).join(", ")}`);
-      }
-      const description = careLines.length > 0
-        ? careLines.join("\n")
-        : `🌿 ${identificationResult.species.name || identificationResult.species.scientificName || "Plant"}`;
+      // Build description from identification data (rich Perenual care guide)
+      const description = buildRichDescription(identificationResult);
 
       // Build care schedule tasks — only include user-selected ones
       const careTasks: ActionItem[] = [];
@@ -680,6 +669,7 @@ export function IdentifyPlantDialog({
         scientificName: sciName,
         description,
         imageUrl,
+        plantedDate: today,
         careTasks,
       });
     } catch (err) {

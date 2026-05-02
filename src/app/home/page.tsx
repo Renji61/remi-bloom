@@ -505,6 +505,7 @@ export default function HomePage() {
       scientificName: result.scientificName,
       description: result.description,
       imageUrl: result.imageUrl,
+      plantedDate: result.plantedDate,
     });
     // Store care tasks AFTER openAddForm so resetPlantForm doesn't clear them
     pendingCareTasksRef.current = result.careTasks;
