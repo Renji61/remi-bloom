@@ -236,12 +236,16 @@ export default function SharePage() {
 
     // Write-through to the server so other users can look up the invite code immediately
     try {
-      await fetch("/api/shared-gardens", {
+      const serverResponse = await fetch("/api/shared-gardens", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newGarden),
       });
+      if (!serverResponse.ok) {
+        // Server rejected the garden; fall through so the sync queue picks it up
+        console.warn("Server rejected garden creation, falling back to sync queue:", serverResponse.status);
+      }
     } catch {
       // Offline: the sync queue will propagate the garden later
     }
@@ -350,29 +354,14 @@ export default function SharePage() {
         return;
       }
 
-      const garden = await getSharedGardenByCode(code);
-      if (garden) {
-        const migratedMembers = garden.members.map(migrateMember);
-        const isMember = migratedMembers.some((m) => m.id === currentUserId);
-        if (isMember) {
-          setJoinStatus({ type: "error", message: "You are already a member of this garden." });
-          return;
-        }
-        setJoinStatus({
-          type: "found",
-          garden,
-          role: garden.pendingInvites?.[0]?.role ?? "caretaker",
-          scope: garden.pendingInvites?.[0]?.scope ?? DEFAULT_SCOPE,
-          memberCount: garden.members?.length ?? 0,
-          sharedCount: garden.sharedPlantIds?.length ?? 0,
-        });
-      } else {
-        setJoinStatus({
-          type: "error",
-          message: "No garden found with that invite code.",
-        });
-      }
+      // API lookup failed — try local IndexedDB (useful for same-device, offline scenarios)
+      setJoinStatus({
+        type: "error",
+        message: "No garden found with that invite code. The garden may not yet be synced to the server, or the code is incorrect.",
+      });
     } catch {
+      // Network error during API lookup — the code is correct but we're offline
+      // Try local IndexedDB (only works for same-device gardens)
       try {
         const garden = await getSharedGardenByCode(code);
         if (garden) {
@@ -393,7 +382,7 @@ export default function SharePage() {
         } else {
           setJoinStatus({
             type: "error",
-            message: "No garden found with that invite code.",
+            message: "No garden found with that invite code. The garden may not yet be synced to the server, or the code is incorrect.",
           });
         }
       } catch (err: any) {
@@ -441,6 +430,7 @@ export default function SharePage() {
         });
       }
     } catch {
+      // Network error during join — try local IndexedDB (only works for same-device gardens)
       try {
         const garden = await getSharedGardenByCode(code);
         if (garden && currentUserId && currentUser) {
