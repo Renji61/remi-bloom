@@ -42,6 +42,12 @@ export function useScopedPlants(plants: Plant[]): Plant[] {
     // Build union of visible plant IDs
     const visiblePlantIds = new Set<string>();
 
+    // Always include the member's own plants
+    const myPlants = plants.filter((p) => p.userId === currentUserId);
+    for (const plant of myPlants) {
+      visiblePlantIds.add(plant.id);
+    }
+
     for (const garden of memberGardens) {
       const member = garden.members.find((m) => m.id === currentUserId);
       if (!member) continue;

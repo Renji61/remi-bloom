@@ -101,16 +101,18 @@ export function useGardenRole(): GardenPermissions {
     }
 
     const isCaretaker = highestRole === "caretaker";
-    const isObserver = highestRole === "observer";
 
     return {
       role: highestRole,
       visiblePlantIds,
-      canEdit: isObserver ? false : true,
-      canManage: false, // only owner can manage
-      canAddPlants: false, // only owner can add plants
-      canDeletePlants: isObserver ? false : isCaretaker ? false : true,
-      canLogCare: isObserver ? false : true,
+      // Members can always edit/add/delete their OWN plants in the app.
+      // The shared garden role only affects permissions for shared data.
+      // These permissions control UI actions on the member's personal plants.
+      canEdit: true,
+      canManage: false, // only owner can manage garden settings
+      canAddPlants: true, // members can still add their own plants
+      canDeletePlants: true, // members can delete their own plants
+      canLogCare: isCaretaker ? false : true, // observers can't log care on shared plants
     };
   }, [currentUserId, sharedGardens]);
 }

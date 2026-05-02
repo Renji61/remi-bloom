@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
+import { resolveApiKey, apiKeysOverridable } from "@/lib/api-key-utils";
 
 const API_TIMEOUT_MS = 15000;
 
@@ -8,17 +9,22 @@ const API_TIMEOUT_MS = 15000;
  * GET /api/perenual?action=care-guide&species_id=123
  * GET /api/perenual?action=search&q=Monstera
  *
- * Forwards requests to the Perenual API using the server-side API key.
- * All endpoints require authentication.
+ * Forwards requests to the Perenual API.
+ *
+ * API key resolution (in order):
+ *   1. User setting "perenualApiKey" (if API_KEYS_OVERRIDABLE != "false")
+ *   2. Environment variable PERENUAL_API_KEY
  */
 export async function GET(request: NextRequest) {
   const userId = await requireAuth();
   if (userId instanceof NextResponse) return userId;
 
-  const apiKey = process.env.PERENUAL_API_KEY;
+  const apiKey = await resolveApiKey(userId, "perenualApiKey", "PERENUAL_API_KEY");
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Perenual API key is not configured on the server." },
+      {
+        error: `Perenual API key is not configured.${apiKeysOverridable() ? " Provide it in Settings > API Keys or set PERENUAL_API_KEY in the server environment." : " Set PERENUAL_API_KEY in the server environment."}`,
+      },
       { status: 500 },
     );
   }

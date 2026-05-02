@@ -132,7 +132,6 @@ export function WeatherFetcher() {
 
   const CACHE_DURATION_MS = 3 * 60 * 60 * 1000;
 
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const [location, setLocation] = useState("auto:detect");
   const [weatherLat, setWeatherLat] = useState<string | null>(null);
   const [weatherLon, setWeatherLon] = useState<string | null>(null);
@@ -150,16 +149,15 @@ export function WeatherFetcher() {
     Date.now() - weatherLastFetchedAt < CACHE_DURATION_MS;
 
   const fetchWeather = useCallback(async (signal?: AbortSignal) => {
-    if (!apiKey) return;
     try {
-      let url: string;
+      let proxyUrl: string;
       if (weatherLat && weatherLon) {
-        url = `https://api.openweathermap.org/data/2.5/forecast?lat=${weatherLat}&lon=${weatherLon}&appid=${apiKey}&units=metric`;
+        proxyUrl = `/api/weather/proxy?lat=${weatherLat}&lon=${weatherLon}`;
       } else {
         const q = location === "auto:detect" ? "London" : location;
-        url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(q)}&appid=${apiKey}&units=metric`;
+        proxyUrl = `/api/weather/proxy?q=${encodeURIComponent(q)}`;
       }
-      const res = await fetch(url, { signal });
+      const res = await fetch(proxyUrl, { signal, credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setWeatherData(data);
@@ -168,7 +166,7 @@ export function WeatherFetcher() {
     } catch {
       // Silently fail — badge will show placeholder
     }
-  }, [apiKey, location, weatherLat, weatherLon, setWeatherData, setWeatherMeta, currentHash]);
+  }, [location, weatherLat, weatherLon, setWeatherData, setWeatherMeta, currentHash]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,14 +176,12 @@ export function WeatherFetcher() {
         return;
       }
 
-      const [key, loc, lat, lon] = await Promise.all([
-        getUserSetting(currentUserId, "weatherApiKey"),
+      const [loc, lat, lon] = await Promise.all([
         getUserSetting(currentUserId, "weatherLocation"),
         getUserSetting(currentUserId, "weatherLat"),
         getUserSetting(currentUserId, "weatherLon"),
       ]);
       if (cancelled) return;
-      setApiKey(key ?? null);
       setLocation(loc ?? "auto:detect");
       setWeatherLat(lat ?? null);
       setWeatherLon(lon ?? null);
@@ -195,9 +191,9 @@ export function WeatherFetcher() {
   }, [currentUserId]);
 
   useEffect(() => {
-    if (!(ready && apiKey && !isCacheValid)) return;
+    if (!(ready && !isCacheValid)) return;
     fetchWeather(AbortSignal.timeout(10000));
-  }, [ready, apiKey, isCacheValid, fetchWeather]);
+  }, [ready, isCacheValid, fetchWeather]);
 
   return null; // This component does not render anything
 }

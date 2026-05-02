@@ -26,6 +26,7 @@ import {
   CalendarDays,
   Heart,
   Tag,
+  Users,
 } from "lucide-react";
 import {
   Input,
@@ -105,7 +106,32 @@ export default function HomePage() {
   // Shared garden role + scope
   const scopedPlants = useScopedPlants(plants);
   const gardenPermissions = useGardenRole();
+  const sharedGardens = useAppStore((s) => s.sharedGardens);
   useSharedGardenSync();
+
+  // Compute per-plant permissions based on whether it's the user's own plant
+  // or a shared plant from a garden where they have a specific role.
+  const getPlantPermissions = useCallback(
+    (plant: Plant) => {
+      const isOwn = plant.userId === currentUserId;
+      if (isOwn) {
+        // Own plants: full permissions
+        return { canEdit: true, canDelete: true, canLogCare: true };
+      }
+      // Shared plant: check role in the garden that owns this plant
+      const garden = sharedGardens.find((g) => g.ownerId === plant.userId);
+      if (!garden) return { canEdit: false, canDelete: false, canLogCare: false };
+      const member = garden.members.find((m: any) => m.id === currentUserId);
+      if (!member) return { canEdit: false, canDelete: false, canLogCare: false };
+      const isObserver = member.role === "observer";
+      return {
+        canEdit: false, // only owner edits their plants
+        canDelete: false, // only owner deletes their plants
+        canLogCare: !isObserver, // observers can't log care
+      };
+    },
+    [currentUserId, sharedGardens]
+  );
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 200);
@@ -783,10 +809,11 @@ export default function HomePage() {
                   setSelectedPlantId(plant.id);
                   setOpenDetail(true);
                 }}
-                onEdit={gardenPermissions.canEdit ? () => openEditForm(plant) : undefined}
-                canDelete={gardenPermissions.canDeletePlants}
-                canLogCare={gardenPermissions.canLogCare}
+                onEdit={getPlantPermissions(plant).canEdit ? () => openEditForm(plant) : undefined}
+                canDelete={getPlantPermissions(plant).canDelete}
+                canLogCare={getPlantPermissions(plant).canLogCare}
                 index={i}
+                isShared={plant.userId !== currentUserId}
               />
             ))}
           </AnimatePresence>
@@ -803,16 +830,17 @@ export default function HomePage() {
                 location={
                   plant.locationId ? locationMap[plant.locationId] : undefined
                 }
-                onQuickWater={gardenPermissions.canLogCare ? () => logQuickCare(plant.id, "water") : undefined}
-                onQuickFertilize={gardenPermissions.canLogCare ? () => logQuickCare(plant.id, "fertilize") : undefined}
+                onQuickWater={getPlantPermissions(plant).canLogCare ? () => logQuickCare(plant.id, "water") : undefined}
+                onQuickFertilize={getPlantPermissions(plant).canLogCare ? () => logQuickCare(plant.id, "fertilize") : undefined}
                 onOpenDetail={() => {
                   setSelectedPlantId(plant.id);
                   setOpenDetail(true);
                 }}
-                onEdit={gardenPermissions.canEdit ? () => openEditForm(plant) : undefined}
-                canDelete={gardenPermissions.canDeletePlants}
-                canLogCare={gardenPermissions.canLogCare}
+                onEdit={getPlantPermissions(plant).canEdit ? () => openEditForm(plant) : undefined}
+                canDelete={getPlantPermissions(plant).canDelete}
+                canLogCare={getPlantPermissions(plant).canLogCare}
                 index={i}
+                isShared={plant.userId !== currentUserId}
               />
             ))}
           </AnimatePresence>
@@ -827,7 +855,7 @@ export default function HomePage() {
               {selectedPlant?.emoji} {selectedPlant?.name}
             </DialogTitle>
           </DialogHeader>
-          {selectedPlant && gardenPermissions.role !== null && !gardenPermissions.canEdit && !scopedPlants.find((p) => p.id === selectedPlant.id) ? (
+          {selectedPlant && gardenPermissions.role !== null && !getPlantPermissions(selectedPlant).canEdit && !scopedPlants.find((p) => p.id === selectedPlant.id) ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-sm text-on-surface-variant">This plant is not in your shared scope.</p>
             </div>
@@ -844,15 +872,15 @@ export default function HomePage() {
               careEvents={careEvents.filter(
                 (e) => e.plantId === selectedPlant.id
               )}
-              onQuickWater={gardenPermissions.canLogCare ? () => logQuickCare(selectedPlant.id, "water") : undefined}
-              onQuickFertilize={gardenPermissions.canLogCare ? () =>
+              onQuickWater={getPlantPermissions(selectedPlant).canLogCare ? () => logQuickCare(selectedPlant.id, "water") : undefined}
+              onQuickFertilize={getPlantPermissions(selectedPlant).canLogCare ? () =>
                 logQuickCare(selectedPlant.id, "fertilize")
               : undefined}
-              onEdit={gardenPermissions.canEdit ? () => {
+              onEdit={getPlantPermissions(selectedPlant).canEdit ? () => {
                 setOpenDetail(false);
                 openEditForm(selectedPlant);
               } : undefined}
-              onDelete={gardenPermissions.canDeletePlants ? () => handleDeletePlant(selectedPlant.id) : undefined}
+              onDelete={getPlantPermissions(selectedPlant).canDelete ? () => handleDeletePlant(selectedPlant.id) : undefined}
             />
           )}
         </DialogContent>

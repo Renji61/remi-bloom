@@ -41,6 +41,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useConfirm,
 } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import {
@@ -126,6 +127,11 @@ export default function SharePage() {
   const setSharedGardens = useAppStore((s) => s.setSharedGardens);
   const addGardenToStore = useAppStore((s) => s.addSharedGarden);
   const removeGardenFromStore = useAppStore((s) => s.removeSharedGarden);
+  const removePlantFromStore = useAppStore((s) => s.removePlant);
+  const removeJournalEntryFromStore = useAppStore((s) => s.removeJournalEntry);
+  const plants = useAppStore((s) => s.plants);
+  const journalEntries = useAppStore((s) => s.journalEntries);
+  const { confirm } = useConfirm();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -336,6 +342,17 @@ export default function SharePage() {
     async (memberId: string) => {
       if (!managingGarden) return;
 
+      const member = managingGarden.members.map(migrateMember).find((m) => m.id === memberId);
+      const name = member?.name ?? "this member";
+
+      const ok = await confirm({
+        title: "Remove Member",
+        message: `Are you sure you want to remove ${name} from the garden? They will lose access to all shared plants immediately.`,
+        confirmLabel: "Remove",
+        variant: "danger",
+      });
+      if (!ok) return;
+
       const updated: SharedGarden = {
         ...managingGarden,
         members: managingGarden.members.map(migrateMember).filter((m) => m.id !== memberId),
@@ -348,7 +365,7 @@ export default function SharePage() {
       );
       setManagingGarden(updated);
     },
-    [managingGarden, setSharedGardens, sharedGardens]
+    [managingGarden, setSharedGardens, sharedGardens, confirm]
   );
 
   // --- Update Garden Name ---
@@ -571,6 +588,14 @@ export default function SharePage() {
   const handleLeaveGarden = useCallback(async (gardenId: string) => {
     if (!currentUserId) return;
 
+    const ok = await confirm({
+      title: "Leave Garden",
+      message: "Are you sure you want to leave this garden? You will lose access to all shared plants and their journal entries immediately.",
+      confirmLabel: "Leave",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     try {
       await fetch("/api/shared-gardens/leave", {
         method: "POST",
@@ -582,12 +607,31 @@ export default function SharePage() {
       // Offline: just remove from local store
     }
 
+    // Remove shared plants owned by the garden owner from local store
+    const garden = sharedGardens.find((g) => g.id === gardenId);
+    if (garden && garden.ownerId !== currentUserId) {
+      const gardenOwnerPlants = plants.filter((p) => p.userId === garden.ownerId);
+      const gardenOwnerPlantIds = new Set(gardenOwnerPlants.map((p) => p.id));
+
+      // Remove the owner's plants from local store
+      for (const plant of gardenOwnerPlants) {
+        removePlantFromStore(plant.id);
+      }
+
+      // Remove journal entries associated with those plants
+      for (const entry of journalEntries) {
+        if (entry.plantId && gardenOwnerPlantIds.has(entry.plantId)) {
+          removeJournalEntryFromStore(entry.id);
+        }
+      }
+    }
+
     removeGardenFromStore(gardenId);
     if (managingGarden?.id === gardenId) {
       setManagingGarden(null);
     }
     setJoinStatus({ type: "idle" });
-  }, [currentUserId, removeGardenFromStore, managingGarden]);
+  }, [currentUserId, removeGardenFromStore, managingGarden, confirm, sharedGardens, plants, removePlantFromStore, journalEntries, removeJournalEntryFromStore]);
 
   // --- Transfer Ownership ---
   const handleTransferOwnership = useCallback(async () => {
@@ -1348,7 +1392,7 @@ export default function SharePage() {
                 </div>
 
                 {/* Member List */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60">
                     Members ({migratedMembers.length})
                   </p>
@@ -1361,10 +1405,10 @@ export default function SharePage() {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.03 }}
-                        className="rounded-2xl bg-surface-container/40 px-3.5 py-2.5"
+                        className="rounded-2xl bg-surface-container/40 px-3.5 py-3"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant">
                               {member.name.charAt(0).toUpperCase()}
                             </div>
@@ -1397,7 +1441,7 @@ export default function SharePage() {
                             </div>
                           </div>
                           {isOwner && member.role !== "owner" && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <button
                                 onClick={() => startEditingScope(member)}
                                 className="rounded-lg p-1.5 text-on-surface-variant/40 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 transition-colors"
@@ -1420,7 +1464,7 @@ export default function SharePage() {
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
-                            className="mt-3 rounded-2xl bg-surface-container/30 p-3 space-y-3"
+                            className="mt-4 rounded-2xl bg-surface-container/30 p-3 space-y-3"
                           >
                             <div className="flex gap-2">
                               {(["full", "location", "collection"] as GardenScope[]).map((s) => (

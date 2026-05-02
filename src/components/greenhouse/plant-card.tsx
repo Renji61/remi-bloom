@@ -8,6 +8,7 @@ import {
   Clock,
   Sparkles,
   Pencil,
+  Users,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui";
 import { SafeImage } from "@/components/ui/safe-image";
@@ -27,6 +28,7 @@ interface PlantCardProps {
   canDelete?: boolean;
   canLogCare?: boolean;
   index?: number;
+  isShared?: boolean;
 }
 
 export function PlantCard({
@@ -41,6 +43,7 @@ export function PlantCard({
   canDelete = true,
   canLogCare = true,
   index = 0,
+  isShared = false,
 }: PlantCardProps) {
   const tags = useAppStore((s) => s.tags);
   const dateForAge = plant.plantedDate || plant.createdAt;
@@ -81,8 +84,14 @@ export function PlantCard({
 
             {/* Info */}
             <div onClick={onOpenDetail} className="min-w-0 flex-1">
-              <h3 className="text-sm font-semibold text-on-surface truncate">
+              <h3 className="text-sm font-semibold text-on-surface truncate flex items-center gap-1.5">
                 {plant.name}
+                {isShared && (
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--theme-primary)]/10 px-1.5 py-0.5 text-[8px] font-medium text-[var(--theme-primary)]/70" title="Shared plant">
+                    <Users size={9} className="shrink-0" />
+                    Shared
+                  </span>
+                )}
               </h3>
               <p className="text-xs text-on-surface-variant/70 italic truncate">
                 {plant.scientificName}

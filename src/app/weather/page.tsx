@@ -172,19 +172,18 @@ export default function WeatherPage() {
   }, [weatherData, weatherLastFetchedAt, weatherLocationHash, currentLocationHash]);
 
   const fetchWeather = useCallback(async (signal?: AbortSignal) => {
-    if (!apiKey) return;
     setLoading(true);
     setError(null);
 
     try {
-      let url: string;
+      let proxyUrl: string;
       if (weatherLat && weatherLon) {
-        url = `https://api.openweathermap.org/data/2.5/forecast?lat=${weatherLat}&lon=${weatherLon}&appid=${apiKey}&units=metric`;
+        proxyUrl = `/api/weather/proxy?lat=${weatherLat}&lon=${weatherLon}`;
       } else {
         const queryLocation = location === "auto:detect" ? "London" : location;
-        url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(queryLocation)}&appid=${apiKey}&units=metric`;
+        proxyUrl = `/api/weather/proxy?q=${encodeURIComponent(queryLocation)}`;
       }
-      const res = await fetch(url, { signal });
+      const res = await fetch(proxyUrl, { signal, credentials: "include" });
       if (!res.ok) {
         const errBody = await res.text();
         throw new Error(`Weather API error (${res.status}): ${errBody}`);
@@ -199,7 +198,7 @@ export default function WeatherPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiKey, location, weatherLat, weatherLon, setWeatherData, setWeatherMeta, currentLocationHash]);
+  }, [location, weatherLat, weatherLon, setWeatherData, setWeatherMeta, currentLocationHash]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,9 +248,9 @@ export default function WeatherPage() {
 
   // Auto-fetch on mount only if cache is stale or missing
   useEffect(() => {
-    if (!(settingsLoaded && apiKey && !isCacheValid)) return;
+    if (!(settingsLoaded && !isCacheValid)) return;
     fetchWeather(AbortSignal.timeout(10000));
-  }, [settingsLoaded, apiKey, isCacheValid, fetchWeather]);
+  }, [settingsLoaded, isCacheValid, fetchWeather]);
 
   const currentWeather: ForecastItem | null = weatherData?.list?.[0] ?? null;
   const cityName = weatherData?.city?.name ?? null;
@@ -273,7 +272,7 @@ export default function WeatherPage() {
             size="sm"
             variant="secondary"
             onClick={() => fetchWeather()}
-            disabled={loading || !apiKey}
+            disabled={loading}
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             Refresh
@@ -331,25 +330,19 @@ export default function WeatherPage() {
         <div className="flex items-center justify-center py-16">
           <RefreshCw size={24} className="animate-spin text-on-surface-variant/50" />
         </div>
-      ) : !apiKey ? (
-        /* No API Key state */
+      ) : (!weatherLat && !weatherLon) || (location === "auto:detect" && !apiKey) ? (
+        /* No location configured */
         <Card>
           <CardContent className="p-6 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10">
-              <Thermometer size={24} className="text-amber-400" />
+              <MapPin size={24} className="text-amber-400" />
             </div>
-            <h2 className="text-sm font-semibold text-on-surface">Weather API Key Required</h2>
+            <h2 className="text-sm font-semibold text-on-surface">Set Your Location</h2>
             <p className="mt-2 text-xs text-on-surface-variant/70 leading-relaxed max-w-sm mx-auto">
-              To use the weather feature, add your OpenWeather API key in Settings.
-              You can get a free key at <span className="text-[var(--theme-primary)]">openweathermap.org</span>.
+              {!apiKey && location === "auto:detect"
+                ? "Add an OpenWeather API key in Settings > API Keys, then search for your city above to get weather data for your garden."
+                : "Search for your city above and click \"Set Location\" to get weather data for your garden."}
             </p>
-            <Button
-              className="mt-4"
-              size="sm"
-              onClick={() => window.location.href = "/settings"}
-            >
-              Go to Settings
-            </Button>
           </CardContent>
         </Card>
       ) : loading && !weatherData ? (

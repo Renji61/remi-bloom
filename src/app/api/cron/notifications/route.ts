@@ -4,6 +4,7 @@ import { actionItems } from "@/db/schema/action-items";
 import type { ActionRepeat } from "@/lib/db";
 import { settings } from "@/db/schema/settings";
 import { users } from "@/db/schema/auth";
+import { getUserSettingFromDb } from "@/lib/api-key-utils";
 import {
   sendServerNotification,
   type ServerNotificationConfig,
@@ -201,13 +202,15 @@ async function processWeatherAlerts(
   userId: string,
   config: ServerNotificationConfig,
 ): Promise<{ sent: number; errors: number }> {
-  const [apiKey, lat, lon, location] = await Promise.all([
-    getSetting(userId, "weatherApiKey"),
-    getSetting(userId, "weatherLat"),
-    getSetting(userId, "weatherLon"),
-    getSetting(userId, "weatherLocation"),
+  const [userApiKey, lat, lon, location] = await Promise.all([
+    getUserSettingFromDb(userId, "weatherApiKey"),
+    getUserSettingFromDb(userId, "weatherLat"),
+    getUserSettingFromDb(userId, "weatherLon"),
+    getUserSettingFromDb(userId, "weatherLocation"),
   ]);
 
+  // Resolve: user setting first, then env var fallback
+  const apiKey = userApiKey || process.env.WEATHER_API_KEY;
   if (!apiKey) return { sent: 0, errors: 0 };
 
   // Load configurable alert rule settings

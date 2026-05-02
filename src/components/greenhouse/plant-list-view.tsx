@@ -8,6 +8,7 @@ import {
   Clock,
   Sparkles,
   Pencil,
+  Users,
 } from "lucide-react";
 import { SafeImage } from "@/components/ui/safe-image";
 import { useAppStore } from "@/stores/app-store";
@@ -26,6 +27,7 @@ interface PlantListViewProps {
   canDelete?: boolean;
   canLogCare?: boolean;
   index?: number;
+  isShared?: boolean;
 }
 
 export function PlantListView({
@@ -40,6 +42,7 @@ export function PlantListView({
   canDelete = true,
   canLogCare = true,
   index = 0,
+  isShared = false,
 }: PlantListViewProps) {
   const tags = useAppStore((s) => s.tags);
   const dateForAge = plant.plantedDate || plant.createdAt;
@@ -82,6 +85,12 @@ export function PlantListView({
             <h3 className="text-sm font-semibold text-on-surface truncate">
               {plant.name}
             </h3>
+            {isShared && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--theme-primary)]/10 px-1.5 py-0.5 text-[8px] font-medium text-[var(--theme-primary)]/70 shrink-0" title="Shared plant">
+                <Users size={9} className="shrink-0" />
+                Shared
+              </span>
+            )}
             {/* Age */}
             <span className="shrink-0 rounded-md bg-surface-container-high px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-on-surface-variant/50">
               {getRelativeTime(dateForAge)}

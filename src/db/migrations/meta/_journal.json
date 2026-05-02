@@ -15,6 +15,13 @@
       "when": 1777726299173,
       "tag": "0001_add_pending_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777741358246,
+      "tag": "0002_add_performed_by",
+      "breakpoints": true
     }
   ]
 }

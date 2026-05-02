@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
+import { resolveApiKey, apiKeysOverridable } from "@/lib/api-key-utils";
 
 const API_TIMEOUT_MS = 15000;
 
@@ -10,16 +11,20 @@ const API_TIMEOUT_MS = 15000;
  * plant photo. Forwards the image to the Plant.id v3 identification API and
  * returns the parsed results.
  *
- * Server-side only — no API keys are exposed to the client.
+ * API key resolution (in order):
+ *   1. User setting "plantidApiKey" (if API_KEYS_OVERRIDABLE != "false")
+ *   2. Environment variable PLANTID_API_KEY
  */
 export async function POST(request: NextRequest) {
   const userId = await requireAuth();
   if (userId instanceof NextResponse) return userId;
 
-  const apiKey = process.env.PLANTID_API_KEY;
+  const apiKey = await resolveApiKey(userId, "plantidApiKey", "PLANTID_API_KEY");
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Plant.id API key is not configured on the server." },
+      {
+        error: `Plant.id API key is not configured.${apiKeysOverridable() ? " Provide it in Settings > API Keys or set PLANTID_API_KEY in the server environment." : " Set PLANTID_API_KEY in the server environment."}`,
+      },
       { status: 500 },
     );
   }

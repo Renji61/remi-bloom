@@ -18,11 +18,16 @@ export function useSharedGardenSync() {
   const setSharedGardens = useAppStore((s) => s.setSharedGardens);
   const setCareEvents = useAppStore((s) => s.setCareEvents);
   const setJournalEntries = useAppStore((s) => s.setJournalEntries);
+  const plants = useAppStore((s) => s.plants);
+  const removePlant = useAppStore((s) => s.removePlant);
+  const removeJournalEntry = useAppStore((s) => s.removeJournalEntry);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sharedGardensRef = useRef(sharedGardens);
+  const plantsRef = useRef(plants);
 
-  // Keep the ref up to date so the poll callback always reads the latest value
+  // Keep the refs up to date so the poll callback always reads the latest value
   sharedGardensRef.current = sharedGardens;
+  plantsRef.current = plants;
 
   useEffect(() => {
     // If no shared gardens, clear any existing interval
@@ -53,6 +58,22 @@ export function useSharedGardenSync() {
         if (removedGardens.length > 0) {
           // Garden was deleted or member was removed
           setSharedGardens(payload.sharedGardens as any[]);
+
+          // Clean up shared plants that are no longer accessible.
+          // The sync poll replaces careEvents and journalEntries from the
+          // server, but plants are NOT refreshed by the poll, so we must
+          // remove them manually here.
+          const currentPlants = plantsRef.current;
+          for (const garden of removedGardens) {
+            if (currentUserId && garden.ownerId !== currentUserId) {
+              const gardenOwnerPlants = currentPlants.filter(
+                (p) => p.userId === garden.ownerId
+              );
+              for (const plant of gardenOwnerPlants) {
+                removePlant(plant.id);
+              }
+            }
+          }
         }
 
         // Update care events

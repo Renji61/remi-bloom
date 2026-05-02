@@ -14,4 +14,5 @@ export const journalEntries = pgTable("journal_entries", {
   note: text("note").notNull(),
   date: timestamp("date", { mode: "string" }).notNull(),
   photoUrl: text("photo_url"),
+  performedBy: text("performed_by").default(""),
 });

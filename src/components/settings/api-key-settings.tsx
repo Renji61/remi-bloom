@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Key, Eye, EyeOff, Check, Loader2, Info, Cloud } from "lucide-react";
+import { Key, Eye, EyeOff, Check, Loader2, Info, Cloud, Lock } from "lucide-react";
 import { Card, CardContent, Input, Button } from "@/components/ui";
 import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
@@ -16,6 +16,9 @@ async function fetchCurrentUser(): Promise<User | null> {
 /**
  * API Keys settings component.
  * Reads/writes per-user API keys from/to IndexedDB settings.
+ *
+ * When API_KEYS_OVERRIDABLE is set to "false", the fields are shown
+ * but disabled, and users must rely on server-configured env vars.
  */
 export function ApiKeySettings() {
   const currentUserId = useAppStore((s) => s.currentUserId);
@@ -28,6 +31,8 @@ export function ApiKeySettings() {
   const [saved, setSaved] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Check whether user overrides are allowed (checked client-side on mount)
+  const [overridable, setOverridable] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -41,6 +46,18 @@ export function ApiKeySettings() {
           store.setCurrentUser(session);
           userId = session.id;
         }
+      }
+
+      // Check if API_KEYS_OVERRIDABLE is false
+      // We expose this via a simple server endpoint to avoid client env exposure
+      try {
+        const res = await fetch("/api/settings/keys-config", { credentials: "include" });
+        if (res.ok) {
+          const config = await res.json();
+          setOverridable(config.overridable !== false);
+        }
+      } catch {
+        // Default to overridable if we can't reach the server
       }
 
       if (!userId) {
@@ -63,7 +80,7 @@ export function ApiKeySettings() {
   }, [currentUserId]);
 
   const handleSave = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId || !overridable) return;
     setError(null);
 
     // Validate API key formats
@@ -108,6 +125,16 @@ export function ApiKeySettings() {
           </div>
         </div>
 
+        {!overridable && (
+          <div className="flex items-start gap-2 rounded-xl bg-surface-container/50 px-3 py-2.5">
+            <Lock size={14} className="mt-0.5 shrink-0 text-amber-400" />
+            <p className="text-xs text-on-surface-variant/70 leading-relaxed">
+              Custom API keys are currently disabled by the server administrator.
+              Set <code className="text-[var(--theme-primary)] text-[10px]">API_KEYS_OVERRIDABLE=true</code> in the server environment to allow users to enter their own keys.
+            </p>
+          </div>
+        )}
+
         {/* Toggle show/hide all keys */}
         <button
           onClick={() => setShowKeys(!showKeys)}
@@ -124,6 +151,7 @@ export function ApiKeySettings() {
           value={plantidKey}
           onChange={(e) => setPlantidKey(e.target.value)}
           placeholder="Enter your Plant.id API key..."
+          disabled={!overridable}
         />
 
         {/* Perenual API Key */}
@@ -133,6 +161,7 @@ export function ApiKeySettings() {
           value={perenualKey}
           onChange={(e) => setPerenualKey(e.target.value)}
           placeholder="Enter your Perenual API key..."
+          disabled={!overridable}
         />
 
         {/* OpenWeather API Key */}
@@ -146,6 +175,7 @@ export function ApiKeySettings() {
           value={weatherKey}
           onChange={(e) => setWeatherKey(e.target.value)}
           placeholder="Enter your OpenWeather API key..."
+          disabled={!overridable}
         />
 
         <div className="flex items-start gap-2 rounded-xl bg-surface-container/50 px-3 py-2.5">
@@ -165,7 +195,7 @@ export function ApiKeySettings() {
           <p className="text-xs text-red-400">{error}</p>
         )}
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
+        <Button onClick={handleSave} disabled={saving || !overridable} className="w-full">
           {saving ? (
             <Loader2 size={14} className="animate-spin" />
           ) : saved ? (

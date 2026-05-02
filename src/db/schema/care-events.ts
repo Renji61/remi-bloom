@@ -16,4 +16,5 @@ export const careEvents = pgTable("care_events", {
   }).notNull(),
   date: timestamp("date", { mode: "string" }).notNull(),
   note: text("note").default(""),
+  performedBy: text("performed_by").default(""),
 });
