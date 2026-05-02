@@ -164,6 +164,7 @@ export default function HomePage() {
   // Identify Plants dialog
   const [showIdentifyDialog, setShowIdentifyDialog] = useState(false);
   const pendingCareTasksRef = useRef<ActionItem[]>([]);
+  const objectUrlsRef = useRef<Set<string>>(new Set());
 
   // Thumbnail cache for plant images
   const [plantThumbnails, setPlantThumbnails] = useState<Record<string, string>>({});
@@ -192,24 +193,34 @@ export default function HomePage() {
 
   // Load thumbnails for plants with uploaded images
   useEffect(() => {
-    const pending: string[] = [];
+    const pending: { id: string; isLegacy: boolean }[] = [];
     for (const plant of plants) {
-      if (plant.imageUrl && plant.imageUrl.startsWith("upload:")) {
-        const imageId = plant.imageUrl.slice(7);
-        if (!plantThumbnails[imageId]) pending.push(imageId);
+      if (plant.imageUrl) {
+        if (plant.imageUrl.startsWith("upload:")) {
+          const imageId = plant.imageUrl.slice(7);
+          if (!plantThumbnails[imageId]) pending.push({ id: imageId, isLegacy: true });
+        } else if (plant.imageUrl.startsWith("/uploads/")) {
+          if (!plantThumbnails[plant.imageUrl]) pending.push({ id: plant.imageUrl, isLegacy: false });
+        }
       }
     }
     if (pending.length === 0) return;
     Promise.all(
-      pending.map(async (id) => {
-        const url = await getImageUrl(id);
-        if (url) return { id, url };
+      pending.map(async (item) => {
+        if (item.isLegacy) {
+          const url = await getImageUrl(item.id);
+          if (url) return { id: item.id, url };
+        } else {
+          return { id: item.id, url: item.id };
+        }
         return null;
       })
-    ).then((results) => {
+    )    .then((results) => {
       const updates: Record<string, string> = {};
       for (const r of results) {
-        if (r) updates[r.id] = r.url;
+        if (r) {
+          updates[r.id] = r.url;
+        }
       }
       if (Object.keys(updates).length > 0) {
         setPlantThumbnails((prev) => ({ ...prev, ...updates }));
@@ -220,7 +231,7 @@ export default function HomePage() {
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      Object.values(plantThumbnails).forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -360,12 +371,17 @@ export default function HomePage() {
       locationId: plant.locationId || "none",
       tags: [...plant.tags],
     });
-    if (plant.imageUrl && plant.imageUrl.startsWith("upload:")) {
-      const imageId = plant.imageUrl.slice(7);
-      setUploadedImageId(imageId);
-      getImageUrl(imageId).then((url) => {
-        if (url) setUploadedImageUrl(url);
-      });
+    if (plant.imageUrl) {
+      if (plant.imageUrl.startsWith("upload:")) {
+        const imageId = plant.imageUrl.slice(7);
+        setUploadedImageId(imageId);
+        getImageUrl(imageId).then((url) => {
+          if (url) setUploadedImageUrl(url);
+        });
+      } else if (plant.imageUrl.startsWith("/uploads/")) {
+        setUploadedImageId(plant.imageUrl);
+        setUploadedImageUrl(plant.imageUrl);
+      }
     }
     setShowPlantForm(true);
   };
@@ -412,6 +428,7 @@ export default function HomePage() {
         for (const task of pendingCareTasksRef.current) {
           await addActionItem({
             ...task,
+            id: task.id || generateId(),
             userId: currentUserId ?? "",
             plantIds: [plantId],
           });
@@ -429,11 +446,17 @@ export default function HomePage() {
       return;
     }
 
-    if (plant?.imageUrl && plant.imageUrl.startsWith("upload:")) {
-      const imageId = plant.imageUrl.slice(7);
-      await deleteUploadedImage(imageId);
-      if (plantThumbnails[imageId]) {
-        URL.revokeObjectURL(plantThumbnails[imageId]);
+    if (plant?.imageUrl) {
+      if (plant.imageUrl.startsWith("upload:")) {
+        const imageId = plant.imageUrl.slice(7);
+        await deleteUploadedImage(imageId);
+        if (plantThumbnails[imageId]) {
+          URL.revokeObjectURL(plantThumbnails[imageId]);
+        }
+      } else if (plant.imageUrl.startsWith("/uploads/")) {
+        if (plantThumbnails[plant.imageUrl]) {
+          URL.revokeObjectURL(plantThumbnails[plant.imageUrl]);
+        }
       }
     }
     await deletePlantDb(id);
@@ -447,8 +470,6 @@ export default function HomePage() {
   // --- Identify Plants callback ---
   const handleIdentifyComplete = useCallback((result: IdentifyResult) => {
     setShowIdentifyDialog(false);
-    // Store care tasks for when the plant is saved
-    pendingCareTasksRef.current = result.careTasks;
     // Open the add plant form with pre-filled data
     openAddForm({
       name: result.name,
@@ -456,13 +477,20 @@ export default function HomePage() {
       description: result.description,
       imageUrl: result.imageUrl,
     });
+    // Store care tasks AFTER openAddForm so resetPlantForm doesn't clear them
+    pendingCareTasksRef.current = result.careTasks;
     // If an image was uploaded, track it
-    if (result.imageUrl && result.imageUrl.startsWith("upload:")) {
-      const imageId = result.imageUrl.slice(7);
-      setUploadedImageId(imageId);
-      getImageUrl(imageId).then((url) => {
-        if (url) setUploadedImageUrl(url);
-      });
+    if (result.imageUrl) {
+      if (result.imageUrl.startsWith("upload:")) {
+        const imageId = result.imageUrl.slice(7);
+        setUploadedImageId(imageId);
+        getImageUrl(imageId).then((url) => {
+          if (url) setUploadedImageUrl(url);
+        });
+      } else if (result.imageUrl.startsWith("/uploads/")) {
+        setUploadedImageId(result.imageUrl);
+        setUploadedImageUrl(result.imageUrl);
+      }
     }
   }, []);
 
@@ -489,14 +517,13 @@ export default function HomePage() {
         if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
       }
 
-      const image = await uploadImage(file);
-      const blobUrl = await getImageUrl(image.id);
+      const url = await uploadImage(file);
 
-      setUploadedImageId(image.id);
-      setUploadedImageUrl(blobUrl);
+      setUploadedImageId(url);
+      setUploadedImageUrl(url);
       setPlantForm((prev) => ({
         ...prev,
-        imageUrl: `upload:${image.id}`,
+        imageUrl: url,
       }));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");

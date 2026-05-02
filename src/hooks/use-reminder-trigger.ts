@@ -6,7 +6,7 @@ import { getUserSetting, db } from "@/lib/db";
 import type { NotificationConfig, NotificationEngine } from "@/lib/notification-engine";
 
 /**
- * Hook that monitors the store for due action items, reminders, and todos
+ * Hook that monitors the store for due action items
  * and sends notifications when care tasks become due.
  *
  * It fires once per minute (polling) and tracks what it has already sent
@@ -14,17 +14,11 @@ import type { NotificationConfig, NotificationEngine } from "@/lib/notification-
  */
 export function useReminderTrigger() {
   const actionItems = useAppStore((s) => s.actionItems);
-  const reminders = useAppStore((s) => s.reminders);
-  const todos = useAppStore((s) => s.todos);
   const currentUserId = useAppStore((s) => s.currentUserId);
 
   // Use refs so the polling interval doesn't reset on every array change
   const actionItemsRef = useRef(actionItems);
-  const remindersRef = useRef(reminders);
-  const todosRef = useRef(todos);
   actionItemsRef.current = actionItems;
-  remindersRef.current = reminders;
-  todosRef.current = todos;
 
   // Track which items have been alerted so we don't spam
   const alertedIds = useRef<Set<string>>(new Set());
@@ -78,8 +72,6 @@ export function useReminderTrigger() {
 
         // Read latest values from refs
         const items = actionItemsRef.current;
-        const rms = remindersRef.current;
-        const tds = todosRef.current;
 
         // Check due (not completed) action items
         for (const item of items) {
@@ -103,50 +95,6 @@ export function useReminderTrigger() {
           // Only mark notificationSent if the send actually succeeded
           if (result.success) {
             await db.actionItems.put({ ...item, notificationSent: true });
-          }
-        }
-
-        // Check due reminders
-        for (const reminder of rms) {
-          if (reminder.completed) continue;
-          if (reminder.notificationSent) continue;
-          if (reminder.date > today) continue;
-          if (!isTimeReached(reminder.time, nowHHMM)) continue;
-          if (alertedIds.current.has(reminder.id)) continue;
-
-          alertedIds.current.add(reminder.id);
-          const plantInfo = reminder.plantName
-            ? ` for ${reminder.plantName}`
-            : "";
-
-          const result = await sendNotification(config, {
-            title: `Reminder: ${reminder.title}`,
-            body: `Reminder "${reminder.title}"${plantInfo} is due today (${formatDateOnly(reminder.date)}${reminder.time ? ` at ${reminder.time}` : ""}).${reminder.note ? `\n\nNote: ${reminder.note}` : ""}`,
-            priority: 6,
-          });
-
-          if (result.success) {
-            await db.reminders.put({ ...reminder, notificationSent: true });
-          }
-        }
-
-        // Check due todos
-        for (const todo of tds) {
-          if (todo.completed) continue;
-          if (todo.notificationSent) continue;
-          if (todo.date > today) continue;
-          if (!isTimeReached(todo.time, nowHHMM)) continue;
-          if (alertedIds.current.has(todo.id)) continue;
-
-          alertedIds.current.add(todo.id);
-          const result = await sendNotification(config, {
-            title: `Todo Due: ${todo.title}`,
-            body: `Todo "${todo.title}" is due today (${formatDateOnly(todo.date)}${todo.time ? ` at ${todo.time}` : ""}).${todo.description ? `\n\n${todo.description}` : ""}`,
-            priority: 5,
-          });
-
-          if (result.success) {
-            await db.todos.put({ ...todo, notificationSent: true });
           }
         }
       } catch {

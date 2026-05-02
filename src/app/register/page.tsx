@@ -3,10 +3,10 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sprout, Loader2, Eye, EyeOff, UserPlus, LogIn } from "lucide-react";
+import { Sprout, Loader2, Eye, EyeOff, UserPlus, LogIn, ShieldX } from "lucide-react";
 import { Button, Card, CardContent, Input } from "@/components/ui";
 import { signIn } from "next-auth/react";
 import { HeaderThemeToggle } from "@/components/layout/weather-badge";
@@ -22,6 +22,20 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/registration-status")
+      .then((r) => r.json())
+      .then((data) => {
+        setRegistrationOpen(data.open);
+      })
+      .catch(() => {
+        setRegistrationOpen(false);
+      })
+      .finally(() => setStatusLoading(false));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +88,53 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (statusLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-surface p-4">
+        <Loader2 size={24} className="animate-spin text-on-surface-variant" />
+      </div>
+    );
+  }
+
+  if (registrationOpen === false) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-surface p-4">
+        <div className="fixed right-4 top-4">
+          <HeaderThemeToggle />
+        </div>
+        <div className="w-full max-w-sm">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-500/20">
+              <ShieldX size={32} className="text-yellow-500" />
+            </div>
+            <h1 className="text-xl font-bold text-on-surface">Registration Closed</h1>
+            <p className="mt-2 text-sm text-on-surface-variant/70">
+              Public registration is currently disabled on this server.
+            </p>
+          </div>
+
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm text-on-surface-variant/70">
+                If you already have an account,&nbsp;
+                <Link
+                  href="/login"
+                  className="font-semibold text-[var(--theme-primary)] hover:underline"
+                >
+                  sign in here
+                </Link>
+                .
+              </p>
+              <p className="mt-4 text-xs text-on-surface-variant/50">
+                Contact the server administrator to create a new account.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-surface p-4">

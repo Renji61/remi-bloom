@@ -249,11 +249,10 @@ export default function JournalPage() {
         if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
       }
 
-      const image = await uploadImage(file);
-      const blobUrl = await getImageUrl(image.id);
+      const imageUrl = await uploadImage(file);
 
-      setUploadedImageId(image.id);
-      setUploadedImageUrl(blobUrl);
+      setUploadedImageId(imageUrl);
+      setUploadedImageUrl(imageUrl);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -278,7 +277,7 @@ export default function JournalPage() {
           date: new Date(`${growthDate}T12:00:00`).toISOString(),
         };
         if (uploadedImageId) {
-          updated.photoUrl = `upload:${uploadedImageId}`;
+          updated.photoUrl = uploadedImageId;
         } else if (existing.photoUrl?.startsWith("upload:")) {
           updated.photoUrl = existing.photoUrl;
         } else {
@@ -290,7 +289,7 @@ export default function JournalPage() {
         const existing = progressEntries.find((e) => e.id === editingEntry.id);
         if (!existing) return;
         const photoUrl = uploadedImageId
-          ? `upload:${uploadedImageId}`
+          ? uploadedImageId
           : existing.photoUrl;
         const updated: ProgressEntry = {
           ...existing,
@@ -317,7 +316,7 @@ export default function JournalPage() {
           plantName: plant?.name ?? "Unknown",
           note: note.trim(),
           date: new Date(`${growthDate}T12:00:00`).toISOString(),
-          photoUrl: uploadedImageId ? `upload:${uploadedImageId}` : undefined,
+          photoUrl: uploadedImageId ? uploadedImageId : undefined,
           performedBy: currentUser?.displayName ?? "Unknown",
         };
         await addJournalEntry(entry);
@@ -333,7 +332,7 @@ export default function JournalPage() {
           heightUnit,
           leafCount,
           notes: note.trim(),
-          photoUrl: uploadedImageId ? `upload:${uploadedImageId}` : "",
+          photoUrl: uploadedImageId ? uploadedImageId : "",
           harvestYield: harvestYield.trim(),
           createdAt: new Date().toISOString().split("T")[0],
         };

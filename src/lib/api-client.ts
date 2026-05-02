@@ -55,8 +55,6 @@ export interface SyncPayload {
   inventory: any[];
   journals: any[];
   gardenCells: any[];
-  reminders: any[];
-  todos: any[];
   progress: any[];
   sharedGardens: any[];
   actionItems: any[];
@@ -223,7 +221,7 @@ export async function getJournalEntries(): Promise<JournalEntry[]> {
 }
 
 // ──────────────────────────────────────────────
-// Reminders
+// Reminders (stubs — superseded by actionItems)
 // ──────────────────────────────────────────────
 
 export async function addReminder(reminder: Reminder): Promise<Reminder> {
@@ -241,11 +239,11 @@ export async function deleteReminder(id: string): Promise<void> {
 }
 
 export async function getAllReminders(): Promise<Reminder[]> {
-  return apiFetch<Reminder[]>("/api/reminders");
+  return localDb.getAllReminders();
 }
 
 // ──────────────────────────────────────────────
-// Todos
+// Todos (stubs — superseded by actionItems)
 // ──────────────────────────────────────────────
 
 export async function addTodo(todo: Todo): Promise<Todo> {
@@ -263,7 +261,7 @@ export async function deleteTodo(id: string): Promise<void> {
 }
 
 export async function getAllTodos(): Promise<Todo[]> {
-  return apiFetch<Todo[]>("/api/todos");
+  return localDb.getAllTodos();
 }
 
 // ──────────────────────────────────────────────

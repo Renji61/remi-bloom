@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { sharedGardens } from "@/db/schema/shared-gardens";
-import { eq } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 
 /**
@@ -27,7 +27,12 @@ export async function GET(request: NextRequest) {
       sharedPlantIds: sharedGardens.sharedPlantIds,
     })
     .from(sharedGardens)
-    .where(eq(sharedGardens.code, code.toUpperCase()))
+    .where(
+      or(
+        eq(sharedGardens.code, code.toUpperCase()),
+        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: code.toUpperCase() }])}`
+      )
+    )
     .then((rows) => rows[0]);
 
   if (!garden) {

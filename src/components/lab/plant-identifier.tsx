@@ -127,7 +127,7 @@ function ManualNameSearch({
     setSearching(true);
     setError(null);
     try {
-      const matches = await IdentificationManager.searchByName(query, currentUserId ?? undefined);
+      const matches = await IdentificationManager.searchByName(query);
       setResults(matches);
       if (matches.length === 0) {
         setError("No matches found. Try a different name.");
@@ -558,8 +558,7 @@ export function PlantIdentifier() {
                 const blob = await resp.blob();
                 return new File([blob], "capture.webp", { type: "image/webp" });
               })();
-          const uploaded = await uploadImage(fileToUpload);
-          imageUrl = `upload:${uploaded.id}`;
+          imageUrl = await uploadImage(fileToUpload);
         } catch {
           // Fall back to data URL if upload to IndexedDB fails
           imageUrl = identificationResult.imageDataUrl || "";

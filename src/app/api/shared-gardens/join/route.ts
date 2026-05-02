@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { getDb } from "@/db";
 import { sharedGardens } from "@/db/schema/shared-gardens";
-import { eq } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 
 /**
  * POST /api/shared-gardens/join
@@ -38,7 +37,12 @@ export async function POST(request: NextRequest) {
   const garden = await db
     .select()
     .from(sharedGardens)
-    .where(eq(sharedGardens.code, normalizedCode))
+    .where(
+      or(
+        eq(sharedGardens.code, normalizedCode),
+        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}`
+      )
+    )
     .then((rows) => rows[0]);
 
   if (!garden) {

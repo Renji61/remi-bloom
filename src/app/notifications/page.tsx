@@ -36,9 +36,12 @@ import {
   updateReminder,
   deleteReminder,
   deleteTodo,
+  addCareEvent,
 } from "@/lib/db";
-import { formatDate } from "@/lib/utils";
+import { generateId, formatDate } from "@/lib/utils";
 import { computeNextDate } from "@/lib/repeat-utils";
+
+type CareEvent = import("@/lib/db").CareEvent;
 
 type NotificationItem = {
   id: string;
@@ -61,8 +64,11 @@ export default function NotificationsPage() {
   const actionItems = useAppStore((s) => s.actionItems);
   const reminders = useAppStore((s) => s.reminders);
   const todos = useAppStore((s) => s.todos);
+  const currentUserId = useAppStore((s) => s.currentUserId);
+  const currentUser = useAppStore((s) => s.currentUser);
   const removeActionItem = useAppStore((s) => s.removeActionItem);
   const updateActionItemInStore = useAppStore((s) => s.updateActionItem);
+  const addCareEventToStore = useAppStore((s) => s.addCareEvent);
   const removeReminder = useAppStore((s) => s.removeReminder);
   const removeTodo = useAppStore((s) => s.removeTodo);
 
@@ -155,6 +161,33 @@ export default function NotificationsPage() {
       const origId = item.id.replace("action:", "");
       const action = actionItems.find((a) => a.id === origId);
       if (!action) return;
+
+      // Helper to map action type to valid CareEvent type
+      const mapActionTypeToCareType = (t: string): "water" | "fertilize" | "repot" | "prune" | "other" => {
+        const careTypes = ["water", "fertilize", "repot", "prune"] as const;
+        if (careTypes.includes(t as any)) return t as "water" | "fertilize" | "repot" | "prune";
+        return "other";
+      };
+
+      // Log a CareEvent for each linked plant
+      const todayStr = new Date().toISOString().split("T")[0];
+      if (action.plantIds && action.plantIds.length > 0) {
+        for (const plantId of action.plantIds) {
+          if (!plantId) continue;
+          const careEvent: CareEvent = {
+            id: generateId(),
+            userId: action.userId,
+            plantId,
+            plantName: action.plantNames?.[0] ?? "",
+            type: mapActionTypeToCareType(action.type),
+            date: todayStr,
+            note: `Completed: ${action.title}`,
+            performedBy: currentUser?.displayName ?? "Unknown",
+          };
+          await addCareEvent(careEvent);
+          addCareEventToStore(careEvent);
+        }
+      }
 
       if (action.repeat !== "none") {
         // Recurring action: compute next due date instead of marking completed

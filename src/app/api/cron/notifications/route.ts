@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { actionItems } from "@/db/schema/action-items";
 import type { ActionRepeat } from "@/lib/db";
-import { reminders } from "@/db/schema/reminders";
-import { todos } from "@/db/schema/todos";
 import { settings } from "@/db/schema/settings";
 import { users } from "@/db/schema/auth";
 import {
@@ -23,6 +21,7 @@ const FROST_TEMP_C = 2;
 const HEATWAVE_TEMP_C = 38;
 const STORM_CONDITIONS = new Set(["Thunderstorm", "Squall", "Tornado"]);
 const COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
+const HYSTERESIS_BUFFER_C = 1; // 1°C buffer for temperature alerts
 
 // ──────────────────────────────────────────────
 // Helper: fetch a single user setting from PostgreSQL
@@ -44,6 +43,54 @@ async function setSetting(userId: string, key: string, value: string): Promise<v
     .insert(settings)
     .values({ key: `${userId}:${key}`, value })
     .onConflictDoUpdate({ target: settings.key, set: { value } });
+}
+
+function hysteresisSettingKey(alertKey: string): string {
+  return `weatherHyst:${alertKey}`;
+}
+
+async function shouldFireTempAbove(
+  userId: string,
+  alertKey: string,
+  temp: number,
+  threshold: number,
+): Promise<boolean> {
+  const clearedBelow = threshold - HYSTERESIS_BUFFER_C;
+  const raw = await getSetting(userId, hysteresisSettingKey(alertKey));
+
+  if (!raw) {
+    await setSetting(userId, hysteresisSettingKey(alertKey), String(threshold));
+    return true;
+  }
+  const recordedThreshold = parseFloat(raw);
+  if (isNaN(recordedThreshold)) return true;
+  if (temp < clearedBelow) {
+    await setSetting(userId, hysteresisSettingKey(alertKey), String(threshold));
+    return true;
+  }
+  return false;
+}
+
+async function shouldFireTempBelow(
+  userId: string,
+  alertKey: string,
+  temp: number,
+  threshold: number,
+): Promise<boolean> {
+  const clearedAbove = threshold + HYSTERESIS_BUFFER_C;
+  const raw = await getSetting(userId, hysteresisSettingKey(alertKey));
+
+  if (!raw) {
+    await setSetting(userId, hysteresisSettingKey(alertKey), String(threshold));
+    return true;
+  }
+  const recordedThreshold = parseFloat(raw);
+  if (isNaN(recordedThreshold)) return true;
+  if (temp > clearedAbove) {
+    await setSetting(userId, hysteresisSettingKey(alertKey), String(threshold));
+    return true;
+  }
+  return false;
 }
 
 // ──────────────────────────────────────────────
@@ -130,103 +177,6 @@ async function processCareReminders(
           .set({ notificationSent: true })
           .where(eq(actionItems.id, item.id));
       }
-      sent++;
-    } else {
-      errors++;
-    }
-  }
-
-  // ── Reminders ──
-
-  const dueReminders = await db
-    .select({
-      id: reminders.id,
-      userId: reminders.userId,
-      title: reminders.title,
-      date: reminders.date,
-      time: reminders.time,
-      note: reminders.note,
-      plantName: reminders.plantName,
-      repeat: reminders.repeat,
-      repeatInterval: reminders.repeatInterval,
-    })
-    .from(reminders)
-    .where(
-      and(
-        eq(reminders.userId, userId),
-        eq(reminders.completed, false),
-        eq(reminders.notificationSent, false),
-        sql`DATE(${reminders.date}) <= ${todayStr}`,
-      ),
-    );
-
-  for (const item of dueReminders) {
-    const plantInfo = item.plantName ? ` for ${item.plantName}` : "";
-
-    const result = await sendServerNotification(config, {
-      title: `Reminder: ${item.title}`,
-      body: `Reminder "${item.title}"${plantInfo} is due today (${formatDateOnly(item.date)}${item.time ? ` at ${item.time}` : ""}).${item.note ? `\n\nNote: ${item.note}` : ""}`,
-      priority: 6,
-    });
-
-    if (result.success) {
-      if (item.repeat && item.repeat !== "none") {
-        // Compute next date by adding repeatInterval days
-        const intervalMs = (item.repeatInterval || 1) * 86400000;
-        const nextDate = new Date(
-          new Date(formatDateOnly(item.date) + "T00:00:00").getTime() + intervalMs,
-        )
-          .toISOString()
-          .split("T")[0];
-        await db
-          .update(reminders)
-          .set({ date: nextDate + "T00:00:00", notificationSent: false })
-          .where(eq(reminders.id, item.id));
-      } else {
-        await db
-          .update(reminders)
-          .set({ notificationSent: true })
-          .where(eq(reminders.id, item.id));
-      }
-      sent++;
-    } else {
-      errors++;
-    }
-  }
-
-  // ── Todos ──
-
-  const dueTodos = await db
-    .select({
-      id: todos.id,
-      userId: todos.userId,
-      title: todos.title,
-      date: todos.date,
-      time: todos.time,
-      description: todos.description,
-    })
-    .from(todos)
-    .where(
-      and(
-        eq(todos.userId, userId),
-        eq(todos.completed, false),
-        eq(todos.notificationSent, false),
-        sql`DATE(${todos.date}) <= ${todayStr}`,
-      ),
-    );
-
-  for (const item of dueTodos) {
-    const result = await sendServerNotification(config, {
-      title: `Todo Due: ${item.title}`,
-      body: `Todo "${item.title}" is due today (${formatDateOnly(item.date)}${item.time ? ` at ${item.time}` : ""}).${item.description ? `\n\n${item.description}` : ""}`,
-      priority: 5,
-    });
-
-    if (result.success) {
-      await db
-        .update(todos)
-        .set({ notificationSent: true })
-        .where(eq(todos.id, item.id));
       sent++;
     } else {
       errors++;
@@ -409,6 +359,16 @@ async function processWeatherAlerts(
       if (!isNaN(lastSent) && Date.now() - lastSent < COOLDOWN_MS) {
         continue; // Still on cooldown
       }
+    }
+
+    // Hysteresis guard for configurable temperature alerts
+    if (alert.key.startsWith("tempAbove:")) {
+      const threshold = parseFloat(tempAboveV ?? "0");
+      if (!isNaN(threshold) && !(await shouldFireTempAbove(userId, alert.key, temp, threshold))) continue;
+    }
+    if (alert.key.startsWith("tempBelow:")) {
+      const threshold = parseFloat(tempBelowV ?? "0");
+      if (!isNaN(threshold) && !(await shouldFireTempBelow(userId, alert.key, temp, threshold))) continue;
     }
 
     const result = await sendServerNotification(config, {

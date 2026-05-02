@@ -46,6 +46,8 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./public/uploads:/app/public/uploads
     networks:
       - remi_bloom_net
 

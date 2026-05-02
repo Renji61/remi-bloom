@@ -400,8 +400,6 @@ class RemiBloomDB extends Dexie {
   journalEntries!: Table<JournalEntry, string>;
   gardenCells!: Table<GardenCell, string>;
   settings!: Table<AppSettings, string>;
-  reminders!: Table<Reminder, string>;
-  todos!: Table<Todo, string>;
   progressEntries!: Table<ProgressEntry, string>;
   sharedGardens!: Table<SharedGarden, string>;
   uploadedImages!: Table<UploadedImage, string>;
@@ -422,8 +420,6 @@ class RemiBloomDB extends Dexie {
       journalEntries: "id, plantId, date",
       gardenCells: "id, [x+y]",
       settings: "key",
-      reminders: "id, date, completed, plantId",
-      todos: "id, date, completed",
       progressEntries: "id, plantId, date",
       sharedGardens: "id, code",
       uploadedImages: "id",
@@ -449,8 +445,6 @@ class RemiBloomDB extends Dexie {
       journalEntries: "id, userId, plantId, date",
       gardenCells: "id, userId, [x+y]",
       settings: "key",
-      reminders: "id, userId, date, completed, plantId",
-      todos: "id, userId, date, completed",
       progressEntries: "id, userId, plantId, date",
       sharedGardens: "id, code",
       uploadedImages: "id, userId",
@@ -636,10 +630,24 @@ export async function replaySyncQueue(userId?: string): Promise<SyncReplayResult
           if (succeededIds.has(operation.operationId)) {
             await db.syncQueue.delete(operation.id);
           } else if (failedIds.has(operation.operationId)) {
-            await db.syncQueue.update(operation.id, {
-              attempts: operation.attempts + 1,
-              updatedAt: new Date().toISOString(),
-            });
+            const newAttempts = operation.attempts + 1;
+            if (newAttempts >= 5) {
+              // Permanently drop operations that have exceeded the max retry limit
+              if (process.env.NODE_ENV !== "production") {
+                console.warn("Sync operation dropped after max retries", {
+                  entity: operation.entity,
+                  action: operation.action,
+                  recordId: operation.recordId,
+                  attempts: operation.attempts,
+                });
+              }
+              await db.syncQueue.delete(operation.id);
+            } else {
+              await db.syncQueue.update(operation.id, {
+                attempts: newAttempts,
+                updatedAt: new Date().toISOString(),
+              });
+            }
           }
         }
       });
@@ -652,10 +660,23 @@ export async function replaySyncQueue(userId?: string): Promise<SyncReplayResult
     } catch {
       await db.transaction("rw", db.syncQueue, async () => {
         for (const operation of operations) {
-          await db.syncQueue.update(operation.id, {
-            attempts: operation.attempts + 1,
-            updatedAt: new Date().toISOString(),
-          });
+          const newAttempts = operation.attempts + 1;
+          if (newAttempts >= 5) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("Sync operation dropped after max retries (network error)", {
+                entity: operation.entity,
+                action: operation.action,
+                recordId: operation.recordId,
+                attempts: operation.attempts,
+              });
+            }
+            await db.syncQueue.delete(operation.id);
+          } else {
+            await db.syncQueue.update(operation.id, {
+              attempts: newAttempts,
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
       });
       return { attempted: operations.length, succeeded: 0, failed: operations.length };
@@ -808,7 +829,6 @@ export async function deletePlant(id: string) {
   await db.careEvents.where("plantId").equals(id).delete();
   await db.journalEntries.where("plantId").equals(id).delete();
   await db.progressEntries.where("plantId").equals(id).delete();
-  await db.reminders.where("plantId").equals(id).delete();
   if (plant?.userId) {
     await enqueueAndReplay(plant.userId, "plant", "delete", { id }, id);
   }
@@ -994,61 +1014,21 @@ export async function deleteJournalEntry(id: string) {
   return result;
 }
 
-// --- Reminders ---
-export async function addReminder(reminder: Reminder) {
-  const result = await db.reminders.add(reminder);
-  await enqueueAndReplay(reminder.userId, "reminder", "create", reminder, reminder.id);
-  return result;
-}
+// --- Legacy reminders stubs (superseded by actionItems) ---
+// These no-ops allow existing imports to compile without error.
+export async function addReminder(_reminder: Reminder): Promise<undefined> { return undefined; }
+export async function updateReminder(_reminder: Reminder): Promise<undefined> { return undefined; }
+export async function deleteReminder(_id: string): Promise<undefined> { return undefined; }
+export async function getAllReminders(): Promise<Reminder[]> { return []; }
+export async function getRemindersForDate(_date: string): Promise<Reminder[]> { return []; }
+export async function getRemindersForUser(_userId: string): Promise<Reminder[]> { return []; }
 
-export async function updateReminder(reminder: Reminder) {
-  const result = await db.reminders.put(reminder);
-  await enqueueAndReplay(reminder.userId, "reminder", "update", reminder, reminder.id);
-  return result;
-}
-
-export async function deleteReminder(id: string) {
-  const reminder = await db.reminders.get(id);
-  const result = await db.reminders.delete(id);
-  if (reminder?.userId) {
-    await enqueueAndReplay(reminder.userId, "reminder", "delete", { id }, id);
-  }
-  return result;
-}
-
-export async function getAllReminders(): Promise<Reminder[]> {
-  return db.reminders.orderBy("date").toArray();
-}
-
-export async function getRemindersForDate(date: string): Promise<Reminder[]> {
-  return db.reminders.where("date").equals(date).toArray();
-}
-
-// --- Todos ---
-export async function addTodo(todo: Todo) {
-  const result = await db.todos.add(todo);
-  await enqueueAndReplay(todo.userId, "todo", "create", todo, todo.id);
-  return result;
-}
-
-export async function updateTodo(todo: Todo) {
-  const result = await db.todos.put(todo);
-  await enqueueAndReplay(todo.userId, "todo", "update", todo, todo.id);
-  return result;
-}
-
-export async function deleteTodo(id: string) {
-  const todo = await db.todos.get(id);
-  const result = await db.todos.delete(id);
-  if (todo?.userId) {
-    await enqueueAndReplay(todo.userId, "todo", "delete", { id }, id);
-  }
-  return result;
-}
-
-export async function getAllTodos(): Promise<Todo[]> {
-  return db.todos.orderBy("date").toArray();
-}
+// --- Legacy todos stubs (superseded by actionItems) ---
+export async function addTodo(_todo: Todo): Promise<undefined> { return undefined; }
+export async function updateTodo(_todo: Todo): Promise<undefined> { return undefined; }
+export async function deleteTodo(_id: string): Promise<undefined> { return undefined; }
+export async function getAllTodos(): Promise<Todo[]> { return []; }
+export async function getTodosForUser(_userId: string): Promise<Todo[]> { return []; }
 
 // --- Progress Entries ---
 export async function addProgressEntry(entry: ProgressEntry) {
@@ -1120,54 +1100,39 @@ export async function getSharedGardenByCode(
 
 // --- Image Uploads ---
 
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/bmp",
-  "image/tiff",
-];
-
-export function isValidImageType(mimeType: string): boolean {
-  return ALLOWED_IMAGE_TYPES.includes(mimeType);
-}
-
-export async function uploadImage(
-  file: File
-): Promise<UploadedImage> {
-  if (!isValidImageType(file.type)) {
-    throw new Error(
-      `Unsupported image format "${file.type}". Allowed: JPEG, PNG, GIF, WebP, AVIF, BMP, TIFF`
-    );
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error("Image too large. Maximum size is 10MB.");
-  }
-
+export async function uploadImage(file: File): Promise<string> {
+  // Compress the image before uploading
   const compressedBlob = await compressImage(file);
-  const imageId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  const image: UploadedImage = {
-    id: imageId,
-    data: compressedBlob,
-    mimeType: "image/webp",
-    name: file.name.replace(/\.[^.]+$/, "") + ".webp",
-    userId: "",
-    createdAt: new Date().toISOString(),
-  };
-  await db.uploadedImages.put(image);
-  return image;
+  const compressedFile = new File([compressedBlob], file.name.replace(/\.[^.]+$/, "") + ".webp", {
+    type: "image/webp",
+  });
+
+  const formData = new FormData();
+  formData.append("file", compressedFile);
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(err.error || "Upload failed");
+  }
+
+  const data = await response.json();
+  return data.url;
 }
 
 export async function getImageUrl(imageId: string): Promise<string | null> {
-  const image = await db.uploadedImages.get(imageId);
-  if (!image) return null;
-  return URL.createObjectURL(image.data);
+  if (!imageId) return null;
+  return imageId;
 }
 
-export async function deleteUploadedImage(imageId: string): Promise<void> {
-  await db.uploadedImages.delete(imageId);
+export async function deleteUploadedImage(_imageId: string): Promise<void> {
+  // TODO: Implement server-side image deletion if needed.
+  // For now, orphaned uploads can be cleaned up periodically.
 }
 
 // --- Action Engine CRUD ---
@@ -1323,14 +1288,6 @@ export async function getCareEventsForUser(userId: string): Promise<CareEvent[]>
 
 export async function getJournalEntriesForUser(userId: string): Promise<JournalEntry[]> {
   return db.journalEntries.where("userId").equals(userId).toArray();
-}
-
-export async function getRemindersForUser(userId: string): Promise<Reminder[]> {
-  return db.reminders.where("userId").equals(userId).toArray();
-}
-
-export async function getTodosForUser(userId: string): Promise<Todo[]> {
-  return db.todos.where("userId").equals(userId).toArray();
 }
 
 export async function getProgressEntriesForUser(userId: string): Promise<ProgressEntry[]> {

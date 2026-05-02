@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { users } from "@/db/schema/auth";
+import { settings } from "@/db/schema/settings";
 import { auditLogs } from "@/db/schema/audit-logs";
 import { eq } from "drizzle-orm";
 import { hash } from "bcryptjs";
@@ -11,8 +12,25 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 4;
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
   const db = getDb();
+
+  // Check if registration is disabled (env var OR database setting)
+  const isRegistrationDisabledByEnv = process.env.DISABLE_OPEN_REGISTRATION === "true";
+  const registrationSetting = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, "__server:disable_open_registration"))
+    .then((r) => r[0]);
+  const isRegistrationDisabledBySetting = registrationSetting?.value === "true";
+
+  if (isRegistrationDisabledByEnv || isRegistrationDisabledBySetting) {
+    return NextResponse.json(
+      { error: "Public registration is disabled on this server." },
+      { status: 403 },
+    );
+  }
+
+  const body = await request.json();
   const username = String(body.username ?? "").trim().toLowerCase();
   const displayName = String(body.displayName ?? "").trim();
   const password = String(body.password ?? "");

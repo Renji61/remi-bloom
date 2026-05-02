@@ -30,6 +30,7 @@ import {
 import { CameraView } from "@/components/lab/camera-view";
 import { IdentificationManager } from "@/lib/identification-manager";
 import { uploadImage } from "@/lib/db";
+import { generateId } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import type {
   IdentificationResult,
@@ -145,7 +146,7 @@ function ManualNameSearch({
     setSearching(true);
     setError(null);
     try {
-      const matches = await IdentificationManager.searchByName(query, currentUserId ?? undefined);
+      const matches = await IdentificationManager.searchByName(query);
       setResults(matches);
       if (matches.length === 0) {
         setError("No matches found. Try a different name.");
@@ -590,8 +591,7 @@ export function IdentifyPlantDialog({
                 const blob = await resp.blob();
                 return new File([blob], "capture.webp", { type: "image/webp" });
               })();
-          const uploaded = await uploadImage(fileToUpload);
-          imageUrl = `upload:${uploaded.id}`;
+          imageUrl = await uploadImage(fileToUpload);
         } catch {
           imageUrl = identificationResult.imageDataUrl || "";
         }
@@ -619,7 +619,7 @@ export function IdentifyPlantDialog({
         if (selectedSet && !selectedSet.has(i)) continue;
         const cs = identificationResult.careSchedules[i];
         careTasks.push({
-          id: "",
+          id: generateId(),
           userId: currentUserId ?? "",
           title: `${cs.label} — ${name}`,
           source: "system",
@@ -646,7 +646,7 @@ export function IdentifyPlantDialog({
         if (selectedSet && !selectedSet.has(taskIndex)) continue;
         const f = outOfStockFertilizers[i];
         careTasks.push({
-          id: "",
+          id: generateId(),
           userId: currentUserId ?? "",
           title: `Purchase ${f.name} for ${name}`,
           source: "manual",

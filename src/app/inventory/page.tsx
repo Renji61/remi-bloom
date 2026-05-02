@@ -199,14 +199,13 @@ export default function InventoryPage() {
         if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
       }
 
-      const image = await uploadImage(file);
-      const blobUrl = await getImageUrl(image.id);
+      const imageUrl = await uploadImage(file);
 
-      setUploadedImageId(image.id);
-      setUploadedImageUrl(blobUrl);
+      setUploadedImageId(imageUrl);
+      setUploadedImageUrl(imageUrl);
       setForm((p) => ({
         ...p,
-        imageUrl: `upload:${image.id}`,
+        imageUrl,
       }));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");

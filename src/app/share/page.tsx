@@ -57,7 +57,6 @@ import {
   addPlant,
   addLocation,
   addInventoryItem,
-  addReminder,
   addJournalEntry,
   saveGardenCells,
 } from "@/lib/db";
@@ -71,7 +70,6 @@ import type {
   Plant,
   PlantLocation,
   InventoryItem,
-  Reminder,
   JournalEntry,
   GardenCell,
 } from "@/lib/db";
@@ -398,10 +396,10 @@ export default function SharePage() {
             message: "No garden found with that invite code.",
           });
         }
-      } catch {
+      } catch (err: any) {
         setJoinStatus({
           type: "error",
-          message: "An error occurred while looking up the code.",
+          message: err.error || err.message || "An error occurred while looking up the code.",
         });
       }
     }
@@ -439,7 +437,7 @@ export default function SharePage() {
         const err = await response.json().catch(() => ({}));
         setJoinStatus({
           type: "error",
-          message: err.message || "Failed to join garden. The invite code may be invalid.",
+          message: err.error || err.message || "Failed to join garden. The invite code may be invalid.",
         });
       }
     } catch {
@@ -583,11 +581,10 @@ export default function SharePage() {
       const garden = sharedGardens.find((g) => g.id === gardenId);
       if (!garden) throw new Error("Garden not found");
 
-      const [plants, locations, inventory, reminders, journals, gardenCells] = await Promise.all([
+      const [plants, locations, inventory, journals, gardenCells] = await Promise.all([
         getPlantsForUser(currentUserId),
         getLocationsForUser(currentUserId),
         getInventoryForUser(currentUserId),
-        getRemindersForUser(currentUserId),
         getJournalEntriesForUser(currentUserId),
         getGardenCellsForUser(currentUserId),
       ]);
@@ -598,7 +595,6 @@ export default function SharePage() {
         plants,
         locations,
         inventory,
-        reminders,
         journals,
         gardenCells,
       };
@@ -653,12 +649,6 @@ export default function SharePage() {
         await Promise.all(data.inventory.map((i: any) => {
           const safe = sanitizeFields(reUserId(i), ["name", "notes", "imageUrl", "unit"]);
           return addInventoryItem(safe);
-        }));
-      }
-      if (data.reminders?.length) {
-        await Promise.all(data.reminders.map((r: any) => {
-          const safe = sanitizeFields(reUserId(r), ["title", "note", "plantName"]);
-          return addReminder(safe);
         }));
       }
       if (data.journals?.length) {

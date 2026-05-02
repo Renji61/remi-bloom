@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
-import { Settings, Info, Cloud, DollarSign, Key } from "lucide-react";
+import { Settings, Info, Cloud, DollarSign, Key, Shield } from "lucide-react";
 import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
 import { ThemePicker } from "@/components/settings/theme-picker";
 import { GreenhouseNameSettings } from "@/components/settings/greenhouse-name-settings";
@@ -13,6 +13,7 @@ import { DataSettings } from "@/components/settings/data-settings";
 import { WeatherConfig } from "@/components/settings/weather-config";
 import { NotificationSettings } from "@/components/settings/notification-settings";
 import { ApiKeySettings } from "@/components/settings/api-key-settings";
+import { RegistrationSettings } from "@/components/settings/registration-settings";
 
 export default function SettingsPage() {
   usePageTitle("Settings");
@@ -36,6 +37,7 @@ export default function SettingsPage() {
           <TabsTrigger value="apikeys" className="shrink-0 sm:flex-1">API Keys</TabsTrigger>
           <TabsTrigger value="currency" className="shrink-0 sm:flex-1">Currency</TabsTrigger>
           <TabsTrigger value="weather" className="shrink-0 sm:flex-1">Weather</TabsTrigger>
+          <TabsTrigger value="server" className="shrink-0 sm:flex-1">Server</TabsTrigger>
           <TabsTrigger value="data" className="shrink-0 sm:flex-1">Data</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 sm:flex-1">About</TabsTrigger>
         </TabsList>
@@ -64,6 +66,29 @@ export default function SettingsPage() {
 
         <TabsContent value="weather">
           <WeatherConfig />
+        </TabsContent>
+
+        <TabsContent value="server">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-500/10">
+                  <Shield size={22} className="text-yellow-500" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-on-surface">
+                    Server Settings
+                  </h2>
+                  <p className="text-xs text-on-surface-variant/70">
+                    Manage public access to your self-hosted server
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <RegistrationSettings />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="data">

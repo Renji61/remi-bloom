@@ -10,8 +10,6 @@ import {
   getLocationsForUser,
   getTagsForUser,
   getInventoryForUser,
-  getRemindersForUser,
-  getTodosForUser,
   getProgressEntriesForUser,
   getActionItemsForUser,
   getJournalEntriesForUser,
@@ -26,11 +24,11 @@ import {
   type InventoryItem,
   type JournalEntry,
   type GardenCell,
-  type Reminder,
-  type Todo,
   type ProgressEntry,
   type SharedGarden,
   type ActionItem,
+  type Reminder,
+  type Todo,
 } from "@/lib/db";
 import {
   mockPlants,
@@ -80,8 +78,8 @@ function hydrateStore(payload: SyncPayload) {
   store.setTags(payload.tags as Tag[]);
   store.setInventoryItems(payload.inventory as InventoryItem[]);
   store.setJournalEntries(payload.journals as JournalEntry[]);
-  store.setReminders(payload.reminders as Reminder[]);
-  store.setTodos(payload.todos as Todo[]);
+  store.setReminders([] as Reminder[]);
+  store.setTodos([] as Todo[]);
   store.setProgressEntries(payload.progress as ProgressEntry[]);
   store.setActionItems(payload.actionItems as ActionItem[]);
   store.setSharedGardens(payload.sharedGardens as SharedGarden[]);
@@ -168,8 +166,6 @@ export async function loadFromIndexedDB(userId: string, store: any) {
     locations,
     tags,
     inventory,
-    reminders,
-    todos,
     progress,
     actionItems,
     journals,
@@ -181,8 +177,6 @@ export async function loadFromIndexedDB(userId: string, store: any) {
     getLocationsForUser(userId),
     getTagsForUser(userId),
     getInventoryForUser(userId),
-    getRemindersForUser(userId),
-    getTodosForUser(userId),
     getProgressEntriesForUser(userId),
     getActionItemsForUser(userId),
     getJournalEntriesForUser(userId),
@@ -195,8 +189,8 @@ export async function loadFromIndexedDB(userId: string, store: any) {
   store.setLocations(locations);
   store.setTags(tags);
   store.setInventoryItems(inventory);
-  store.setReminders(reminders);
-  store.setTodos(todos);
+  store.setReminders([]);
+  store.setTodos([]);
   store.setProgressEntries(progress);
   store.setActionItems(actionItems);
   store.setJournalEntries(journals);
@@ -268,8 +262,6 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         db.inventoryItems,
         db.journalEntries,
         db.gardenCells,
-        db.reminders,
-        db.todos,
         db.progressEntries,
         db.sharedGardens,
         db.actionItems,
@@ -284,8 +276,6 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         await db.inventoryItems.where("userId").equals(userId).delete();
         await db.journalEntries.where("userId").equals(userId).delete();
         await db.gardenCells.where("userId").equals(userId).delete();
-        await db.reminders.where("userId").equals(userId).delete();
-        await db.todos.where("userId").equals(userId).delete();
         await db.progressEntries.where("userId").equals(userId).delete();
         await db.sharedGardens
           .filter(
@@ -309,9 +299,6 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
           await db.journalEntries.bulkAdd(payload.journals);
         if (payload.gardenCells.length > 0)
           await db.gardenCells.bulkAdd(payload.gardenCells);
-        if (payload.reminders.length > 0)
-          await db.reminders.bulkAdd(payload.reminders);
-        if (payload.todos.length > 0) await db.todos.bulkAdd(payload.todos);
         if (payload.progress.length > 0)
           await db.progressEntries.bulkAdd(payload.progress);
         if (payload.sharedGardens.length > 0)

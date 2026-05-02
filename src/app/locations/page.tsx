@@ -174,12 +174,11 @@ export default function LocationsPage() {
         if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
       }
 
-      const image = await uploadImage(file);
-      const blobUrl = await getImageUrl(image.id);
+      const imageUrl = await uploadImage(file);
 
-      setUploadedImageId(image.id);
-      setUploadedImageUrl(blobUrl);
-      setImageUrl(`upload:${image.id}`);
+      setUploadedImageId(imageUrl);
+      setUploadedImageUrl(imageUrl);
+      setImageUrl(imageUrl);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {

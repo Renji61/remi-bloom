@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/lib/db";
 
 const ALLOWED_PROTOCOLS = ["https:", "blob:", "data:"];
-const ALLOWED_PREFIXES = ["/icons/", "/images/", "/_next/"];
+const ALLOWED_PREFIXES = ["/icons/", "/images/", "/_next/", "/uploads/"];
 
 function isSafeImageUrl(src: string): boolean {
   try {
@@ -31,16 +31,17 @@ export function SafeImage({ src, alt, className, fallback, onError, ...props }: 
   const [loadError, setLoadError] = useState(false);
   const [resolvedSrc, setResolvedSrc] = useState<string>("");
 
-  // Resolve upload: references to blob URLs
+  // Resolve upload: references to actual URLs
   useEffect(() => {
     if (typeof src !== "string" || !src) {
       setResolvedSrc("");
       return;
     }
     if (src.startsWith("upload:")) {
+      // Legacy IndexedDB upload reference — resolve via getImageUrl
       const imageId = src.slice("upload:".length);
-      getImageUrl(imageId).then((blobUrl) => {
-        if (blobUrl) setResolvedSrc(blobUrl);
+      getImageUrl(imageId).then((url) => {
+        if (url) setResolvedSrc(url);
         else setLoadError(true);
       });
       return;

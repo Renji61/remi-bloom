@@ -38,8 +38,6 @@ import {
   getLocationsForUser,
   getTagsForUser,
   getInventoryForUser,
-  getRemindersForUser,
-  getTodosForUser,
   getProgressEntriesForUser,
   getActionItemsForUser,
   getJournalEntriesForUser,
@@ -92,8 +90,6 @@ export function DataSettings() {
       const inventory = await db.inventoryItems.where("userId").equals(currentUserId ?? "").toArray();
       const journal = await db.journalEntries.where("userId").equals(currentUserId ?? "").toArray();
       const garden = await db.gardenCells.where("userId").equals(currentUserId ?? "").toArray();
-      const reminders = await db.reminders.where("userId").equals(currentUserId ?? "").toArray();
-      const todos = await db.todos.where("userId").equals(currentUserId ?? "").toArray();
       const progress = await db.progressEntries.where("userId").equals(currentUserId ?? "").toArray();
       const actionItems = await db.actionItems.where("userId").equals(currentUserId ?? "").toArray();
       const uploadedImages = await db.uploadedImages.where("userId").equals(currentUserId ?? "").toArray();
@@ -110,8 +106,6 @@ export function DataSettings() {
           inventoryItems: inventory.length,
           journalEntries: journal.length,
           gardenCells: garden.length,
-          reminders: reminders.length,
-          todos: todos.length,
           progressEntries: progress.length,
           actionItems: actionItems.length,
           uploadedImages: uploadedImages.length,
@@ -124,8 +118,6 @@ export function DataSettings() {
         inventoryItems: inventory,
         journalEntries: journal,
         gardenCells: garden,
-        reminders,
-        todos,
         progressEntries: progress,
         actionItems,
         uploadedImages,
@@ -189,8 +181,6 @@ export function DataSettings() {
       if (data.inventoryItems?.length) await db.inventoryItems.bulkAdd(assignUser(data.inventoryItems));
       if (data.journalEntries?.length) await db.journalEntries.bulkAdd(assignUser(data.journalEntries));
       if (data.gardenCells?.length) await db.gardenCells.bulkAdd(assignUser(data.gardenCells));
-      if (data.reminders?.length) await db.reminders.bulkAdd(assignUser(data.reminders));
-      if (data.todos?.length) await db.todos.bulkAdd(assignUser(data.todos));
       if (data.progressEntries?.length) await db.progressEntries.bulkAdd(assignUser(data.progressEntries));
       if (data.actionItems?.length) await db.actionItems.bulkAdd(assignUser(data.actionItems));
       if (data.uploadedImages?.length) await db.uploadedImages.bulkAdd(assignUser(data.uploadedImages));
@@ -217,8 +207,6 @@ export function DataSettings() {
           inventory: assignUser(data.inventoryItems),
           journals: assignUser(data.journalEntries),
           gardenCells: assignUser(data.gardenCells),
-          reminders: assignUser(data.reminders),
-          todos: assignUser(data.todos),
           progress: assignUser(data.progressEntries),
           sharedGardens: assignUser(data.sharedGardens),
           actionItems: assignUser(data.actionItems),
@@ -267,8 +255,6 @@ export function DataSettings() {
       db.inventoryItems.where("userId").equals(currentUserId).delete(),
       db.journalEntries.where("userId").equals(currentUserId).delete(),
       db.gardenCells.where("userId").equals(currentUserId).delete(),
-      db.reminders.where("userId").equals(currentUserId).delete(),
-      db.todos.where("userId").equals(currentUserId).delete(),
       db.progressEntries.where("userId").equals(currentUserId).delete(),
       db.actionItems.where("userId").equals(currentUserId).delete(),
       db.uploadedImages.where("userId").equals(currentUserId).delete(),
@@ -379,8 +365,6 @@ export function DataSettings() {
       setCareEvents([]);
       setJournalEntries([]);
       setInventoryItems([]);
-      useAppStore.getState().setTodos([]);
-      useAppStore.getState().setReminders([]);
       useAppStore.getState().setProgressEntries([]);
       useAppStore.getState().setActionItems([]);
       useAppStore.getState().setGardenCells([]);

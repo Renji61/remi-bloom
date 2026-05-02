@@ -1,87 +1,17 @@
 import {
   getSpeciesCache,
   setSpeciesCache,
-  getUserSetting,
   getInventoryForUser,
 } from "@/lib/db";
 import { compressImage } from "@/lib/image-utils";
-import { generateId } from "@/lib/utils";
 import type {
   PlantIdResult,
   PerenualSpecies,
   PerenualCareGuide,
-  PerenualCareSection,
   SpeciesCacheEntry,
 } from "@/lib/db";
 
 const API_TIMEOUT_MS = 15000;
-
-function combineAbortSignals(
-  ...signals: (AbortSignal | null | undefined)[]
-): AbortSignal | undefined {
-  const validSignals = signals.filter(
-    (s): s is AbortSignal => s != null
-  );
-  if (validSignals.length === 0) return undefined;
-  if (validSignals.length === 1) return validSignals[0];
-  const controller = new AbortController();
-  for (const signal of validSignals) {
-    if (signal.aborted) {
-      controller.abort(signal.reason);
-      return controller.signal;
-    }
-    signal.addEventListener("abort", () => controller.abort(signal.reason), {
-      once: true,
-    });
-  }
-  return controller.signal;
-}
-
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = API_TIMEOUT_MS): Promise<Response> {
-  const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
-  const combinedSignal = combineAbortSignals(timeoutController.signal, options.signal);
-  try {
-    return await fetch(url, { ...options, signal: combinedSignal ?? timeoutController.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 2, timeoutMs = API_TIMEOUT_MS): Promise<Response> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetchWithTimeout(url, options, timeoutMs);
-    if (res.ok || (res.status >= 400 && res.status < 500)) return res;
-    if (attempt < maxRetries) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-  return fetchWithTimeout(url, options, timeoutMs);
-}
-
-// --- API key resolution from user settings ---
-
-async function getPlantIdKey(userId?: string): Promise<string> {
-  if (userId) {
-    const fromSettings = await getUserSetting(userId, "plantidApiKey");
-    if (fromSettings) return fromSettings;
-  }
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_PLANTID_API_KEY) {
-    return process.env.NEXT_PUBLIC_PLANTID_API_KEY;
-  }
-  return "";
-}
-
-async function getPerenualKey(userId?: string): Promise<string> {
-  if (userId) {
-    const fromSettings = await getUserSetting(userId, "perenualApiKey");
-    if (fromSettings) return fromSettings;
-  }
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_PERENUAL_API_KEY) {
-    return process.env.NEXT_PUBLIC_PERENUAL_API_KEY;
-  }
-  return "";
-}
 
 // ──────────────────────────────────────────────
 // Types
@@ -127,70 +57,63 @@ export type ProgressCallback = (info: { step: number; message: string }) => void
 export type IdentificationProgress = { step: number; message: string };
 
 // ──────────────────────────────────────────────
-// API Calls
+// API Calls (via local backend proxies)
 // ──────────────────────────────────────────────
 
+/**
+ * Call the Plant.id identification API through our local backend proxy.
+ * The API key stays on the server.
+ */
 async function callPlantIdApi(
   imageBlob: Blob,
-  userId?: string
 ): Promise<{ results: PlantIdResult[] }> {
-  const apiKey = await getPlantIdKey(userId);
-  if (!apiKey) {
-    throw new Error("Plant.id API key is not configured. Add it in Settings.");
-  }
-
   const formData = new FormData();
   formData.append("images", imageBlob, "plant.jpg");
 
-  const url = "https://api.plant.id/v3/identification";
-  const response = await fetchWithRetry(url, {
-    method: "POST",
-    headers: {
-      "Api-Key": apiKey,
-    },
-    body: formData,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "unknown error");
-    throw new Error(`Plant.id API error (${response.status})`);
+  try {
+    const response = await fetch("/api/identify", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Plant.id API error (${response.status})`);
+    }
+
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const json = await response.json();
-  const suggestions = json.result?.classification?.suggestions ?? [];
-  const results: PlantIdResult[] = suggestions.map((s: any) => ({
-    name: s.name ?? "Unknown",
-    confidence: Math.round((s.probability ?? 0) * 100),
-    scientificName: s.details?.scientific_name ?? "",
-    healthAssessment: s.details?.health_assessment ?? undefined,
-  }));
-
-  return { results };
 }
 
+/**
+ * Fetch species data from Perenual through our local backend proxy.
+ */
 async function callPerenualSpecies(
   scientificName: string,
-  userId?: string
 ): Promise<PerenualSpecies | null> {
-  const apiKey = await getPerenualKey(userId);
-  if (!apiKey) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "Perenual API key is not configured. Skipping species enrichment."
-      );
-    }
-    return null;
-  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  const url = `https://perenual.com/api/species-list?key=${apiKey}&q=${encodeURIComponent(scientificName)}`;
   try {
-    const response = await fetchWithRetry(url);
+    const response = await fetch(
+      `/api/perenual?action=species&q=${encodeURIComponent(scientificName)}`,
+      { credentials: "include", signal: controller.signal },
+    );
+
     if (!response.ok) {
       if (process.env.NODE_ENV !== "production") {
         console.warn(`Perenual species search failed (${response.status})`);
       }
       return null;
     }
+
     const json = await response.json();
     const data = json.data?.[0];
     return data ?? null;
@@ -199,30 +122,33 @@ async function callPerenualSpecies(
       console.warn("Perenual species search failed due to network error");
     }
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
+/**
+ * Fetch care guide from Perenual through our local backend proxy.
+ */
 async function callPerenualCareGuide(
   speciesId: number,
-  userId?: string
 ): Promise<PerenualCareGuide | null> {
-  const apiKey = await getPerenualKey(userId);
-  if (!apiKey) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("Perenual API key is not configured. Skipping care guide enrichment.");
-    }
-    return null;
-  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  const url = `https://perenual.com/api/species-care-guide-list?key=${apiKey}&species_id=${speciesId}`;
   try {
-    const response = await fetchWithRetry(url);
+    const response = await fetch(
+      `/api/perenual?action=care-guide&species_id=${speciesId}`,
+      { credentials: "include", signal: controller.signal },
+    );
+
     if (!response.ok) {
       if (process.env.NODE_ENV !== "production") {
         console.warn(`Perenual care guide fetch failed (${response.status})`);
       }
       return null;
     }
+
     const json = await response.json();
     return json.data?.[0] ?? null;
   } catch {
@@ -230,6 +156,8 @@ async function callPerenualCareGuide(
       console.warn("Perenual care guide fetch failed due to network error");
     }
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -238,32 +166,31 @@ async function callPerenualCareGuide(
  */
 export async function searchByName(
   name: string,
-  userId?: string
 ): Promise<{ name: string; scientificName: string; thumbnailUrl?: string }[]> {
-  const apiKey = await getPerenualKey(userId);
-  if (!apiKey) {
-    throw new Error("Perenual API key is not configured. Add it in Settings.");
-  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  const url = `https://perenual.com/api/species-list?key=${apiKey}&q=${encodeURIComponent(name)}`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "unknown error");
-    throw new Error(`Perenual species search error (${response.status})`);
-  }
+  try {
+    const response = await fetch(
+      `/api/perenual?action=search&q=${encodeURIComponent(name)}`,
+      { credentials: "include", signal: controller.signal },
+    );
 
-  const json = await response.json();
-  const data: PerenualSpecies[] = json.data ?? [];
-  return data.map((s) => ({
-    name: s.common_name || s.scientific_name?.[0] || "Unknown",
-    scientificName: s.scientific_name?.[0] || "",
-    thumbnailUrl: s.default_image?.medium_url ?? undefined,
-  }));
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Perenual search error (${response.status})`);
+    }
+
+    const json = await response.json();
+    return json.results ?? [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function fetchCareDataForScientificName(
   scientificName: string,
-  userId?: string
+  userId?: string,
 ): Promise<{ careSchedules: CareScheduleSuggestion[]; fertilizers: FertilizerSuggestion[]; sunlightNeeds: string[] }> {
   const cached = await getSpeciesCache(scientificName);
   let species: PerenualSpecies | null = null;
@@ -273,9 +200,9 @@ async function fetchCareDataForScientificName(
     species = cached.speciesData;
     careGuide = cached.careGuideData;
   } else {
-    species = await callPerenualSpecies(scientificName, userId);
+    species = await callPerenualSpecies(scientificName);
     if (species) {
-      careGuide = await callPerenualCareGuide(species.id, userId);
+      careGuide = await callPerenualCareGuide(species.id);
       await setSpeciesCache({
         scientificName,
         speciesData: species,
@@ -296,7 +223,7 @@ async function fetchCareDataForScientificName(
     inStock: inventory.some(
       (i) =>
         i.category === "supply" &&
-        name.toLowerCase().includes(i.name.toLowerCase())
+        name.toLowerCase().includes(i.name.toLowerCase()),
     ),
   }));
 
@@ -309,7 +236,7 @@ async function fetchCareDataForScientificName(
 
 function parseCareSchedules(
   guide: PerenualCareGuide | null,
-  species: PerenualSpecies | null
+  species: PerenualSpecies | null,
 ): CareScheduleSuggestion[] {
   const schedules: CareScheduleSuggestion[] = [];
 
@@ -355,11 +282,11 @@ function parseSunlightNeeds(species: PerenualSpecies | null): string[] {
 }
 
 function extractFertilizerNames(
-  guide: PerenualCareGuide | null
+  guide: PerenualCareGuide | null,
 ): string[] {
   if (!guide?.section) return [];
   const fertilizeSection = guide.section.find(
-    (s) => s.type.toLowerCase() === "fertilization"
+    (s) => s.type.toLowerCase() === "fertilization",
   );
   if (!fertilizeSection?.description) return [];
 
@@ -398,7 +325,7 @@ export const IdentificationManager = {
     imageFile: File,
     onProgress?: ProgressCallback,
     userId?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<IdentificationResult> {
     const report = (step: number, message: string) =>
       onProgress?.({ step, message });
@@ -417,7 +344,7 @@ export const IdentificationManager = {
 
     report(2, "Step 2: Analyzing with Plant.id...");
 
-    const visionResult = await callPlantIdApi(compressedBlob, userId);
+    const visionResult = await callPlantIdApi(compressedBlob);
     const results = visionResult.results;
 
     if (results.length === 0) {
@@ -441,9 +368,9 @@ export const IdentificationManager = {
         species = cached.speciesData;
         careGuide = cached.careGuideData;
       } else {
-        species = await callPerenualSpecies(topResult.scientificName, userId);
+        species = await callPerenualSpecies(topResult.scientificName);
         if (species) {
-          careGuide = await callPerenualCareGuide(species.id, userId);
+          careGuide = await callPerenualCareGuide(species.id);
         }
         if (species) {
           await setSpeciesCache({
@@ -468,7 +395,7 @@ export const IdentificationManager = {
         inStock: inventory.some(
           (i) =>
             i.category === "supply" &&
-            name.toLowerCase().includes(i.name.toLowerCase())
+            name.toLowerCase().includes(i.name.toLowerCase()),
         ),
       }));
     }
@@ -503,7 +430,7 @@ export const IdentificationManager = {
    */
   async fetchCareData(
     scientificName: string,
-    userId?: string
+    userId?: string,
   ): Promise<{ careSchedules: CareScheduleSuggestion[]; fertilizers: FertilizerSuggestion[]; sunlightNeeds: string[] }> {
     return fetchCareDataForScientificName(scientificName, userId);
   },

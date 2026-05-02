@@ -8,13 +8,11 @@ import { tags } from "@/db/schema/tags";
 import { inventoryItems } from "@/db/schema/inventory";
 import { journalEntries } from "@/db/schema/journal";
 import { gardenCells } from "@/db/schema/garden-cells";
-import { reminders } from "@/db/schema/reminders";
-import { todos } from "@/db/schema/todos";
 import { progressEntries } from "@/db/schema/progress";
 import { sharedGardens } from "@/db/schema/shared-gardens";
 import { actionItems } from "@/db/schema/action-items";
 import { settings } from "@/db/schema/settings";
-import { and, eq, like, or, sql } from "drizzle-orm";
+import { and, eq, inArray, like, or, sql } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 
 type SyncAction = "create" | "update" | "delete" | "replace";
@@ -119,64 +117,6 @@ const entityConfigs: Record<string, EntityConfig> = {
     createFields: ["plantId", "plantName", "note", "date", "photoUrl", "performedBy"],
     updateFields: ["plantId", "plantName", "note", "date", "photoUrl", "performedBy"],
   },
-  reminder: {
-    table: reminders,
-    idColumn: reminders.id,
-    ownerColumn: reminders.userId,
-    ownerKey: "userId",
-    createFields: [
-      "title",
-      "plantId",
-      "plantName",
-      "type",
-      "date",
-      "time",
-      "repeat",
-      "repeatInterval",
-      "note",
-      "completed",
-      "createdAt",
-    ],
-    updateFields: [
-      "title",
-      "plantId",
-      "plantName",
-      "type",
-      "date",
-      "time",
-      "repeat",
-      "repeatInterval",
-      "note",
-      "completed",
-    ],
-    defaults: () => ({ createdAt: new Date().toISOString() }),
-  },
-  todo: {
-    table: todos,
-    idColumn: todos.id,
-    ownerColumn: todos.userId,
-    ownerKey: "userId",
-    createFields: [
-      "title",
-      "description",
-      "date",
-      "time",
-      "reminderEnabled",
-      "completed",
-      "category",
-      "createdAt",
-    ],
-    updateFields: [
-      "title",
-      "description",
-      "date",
-      "time",
-      "reminderEnabled",
-      "completed",
-      "category",
-    ],
-    defaults: () => ({ createdAt: new Date().toISOString() }),
-  },
   progressEntry: {
     table: progressEntries,
     idColumn: progressEntries.id,
@@ -251,7 +191,7 @@ const entityConfigs: Record<string, EntityConfig> = {
     ownerColumn: sharedGardens.ownerId,
     ownerKey: "ownerId",
     createFields: ["gardenName", "code", "createdAt", "members", "sharedPlantIds", "pendingInvites"],
-    updateFields: ["gardenName", "members", "sharedPlantIds", "pendingInvites"],
+    updateFields: ["gardenName", "code", "members", "sharedPlantIds", "pendingInvites"],
     defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [], pendingInvites: [] }),
   },
 };
@@ -263,8 +203,6 @@ const requiredCreateFields: Record<string, string[]> = {
   tag: ["name"],
   inventoryItem: ["name", "category"],
   journalEntry: ["plantId", "plantName", "note", "date"],
-  reminder: ["title", "type", "date"],
-  todo: ["title", "date"],
   progressEntry: ["plantId", "plantName", "date"],
   actionItem: ["title", "source", "type", "date", "category"],
   sharedGarden: ["gardenName", "code"],
@@ -299,6 +237,25 @@ async function findOwned(db: any, config: EntityConfig, id: string, userId: stri
     .from(config.table)
     .where(and(eq(config.idColumn, id), eq(config.ownerColumn, userId)))
     .then((rows: any[]) => rows[0]);
+}
+
+async function hasWriteAccess(db: any, config: EntityConfig, id: string, userId: string) {
+  // Check direct ownership first
+  const record = await db.select().from(config.table).where(eq(config.idColumn, id)).then((rows: any[]) => rows[0]);
+  if (!record) return false;
+  if (record[config.ownerKey] === userId) return true;
+  // If not owner, check if the record is related to a shared garden
+  let targetPlantId = null;
+  if (config.table === plants) targetPlantId = id;
+  else if (record.plantId) targetPlantId = record.plantId;
+  if (targetPlantId) {
+    const gardens = await db.select().from(sharedGardens).where(
+      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
+    );
+    const sharedPlantIds = new Set(gardens.flatMap((g: any) => g.sharedPlantIds || []));
+    if (sharedPlantIds.has(targetPlantId)) return true;
+  }
+  return false;
 }
 
 function normalizeSettingKey(userId: string, key: string) {
@@ -366,6 +323,15 @@ export async function GET() {
 
   const db = getDb();
 
+  // Fetch shared gardens first to determine which plants are shared with this user
+  const userGardens = await db.select().from(sharedGardens).where(
+    or(
+      eq(sharedGardens.ownerId, userId),
+      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
+    )
+  );
+  const sharedPlantIds = [...new Set(userGardens.flatMap(g => g.sharedPlantIds || []))];
+
   const [
     plantsData,
     careEventsData,
@@ -374,32 +340,26 @@ export async function GET() {
     inventoryData,
     journalsData,
     gardenData,
-    remindersData,
-    todosData,
     progressData,
-    sharedGardenData,
     actionItemsData,
     settingsData,
   ] = await Promise.all([
-    db.select().from(plants).where(eq(plants.userId, userId)),
-    db.select().from(careEvents).where(eq(careEvents.userId, userId)),
+    sharedPlantIds.length > 0
+      ? db.select().from(plants).where(or(eq(plants.userId, userId), inArray(plants.id, sharedPlantIds)))
+      : db.select().from(plants).where(eq(plants.userId, userId)),
+    sharedPlantIds.length > 0
+      ? db.select().from(careEvents).where(or(eq(careEvents.userId, userId), inArray(careEvents.plantId, sharedPlantIds)))
+      : db.select().from(careEvents).where(eq(careEvents.userId, userId)),
     db.select().from(plantLocations).where(eq(plantLocations.userId, userId)),
     db.select().from(tags).where(eq(tags.userId, userId)),
     db.select().from(inventoryItems).where(eq(inventoryItems.userId, userId)),
-    db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
+    sharedPlantIds.length > 0
+      ? db.select().from(journalEntries).where(or(eq(journalEntries.userId, userId), inArray(journalEntries.plantId, sharedPlantIds)))
+      : db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
     db.select().from(gardenCells).where(eq(gardenCells.userId, userId)),
-    db.select().from(reminders).where(eq(reminders.userId, userId)),
-    db.select().from(todos).where(eq(todos.userId, userId)),
-    db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
-    db
-      .select()
-      .from(sharedGardens)
-      .where(
-        or(
-          eq(sharedGardens.ownerId, userId),
-          sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
-        )
-      ),
+    sharedPlantIds.length > 0
+      ? db.select().from(progressEntries).where(or(eq(progressEntries.userId, userId), inArray(progressEntries.plantId, sharedPlantIds)))
+      : db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
     db.select().from(actionItems).where(eq(actionItems.userId, userId)),
     db.select().from(settings).where(like(settings.key, `${userId}:%`)),
   ]);
@@ -418,10 +378,8 @@ export async function GET() {
     inventory: inventoryData,
     journals: journalsData,
     gardenCells: gardenData,
-    reminders: remindersData,
-    todos: todosData,
     progress: progressData,
-    sharedGardens: sharedGardenData,
+    sharedGardens: userGardens,
     actionItems: actionItemsData,
     settings: settingsMap,
   });
@@ -552,10 +510,30 @@ export async function POST(request: NextRequest) {
       }
 
       if (op.action === "update") {
-        const existing = await findOwned(db, config, id, userId);
+        const existing = await findById(db, config, id);
         if (!existing) {
-          results.push(result(op, false, { error: "Record not found for user" }));
+          results.push(result(op, false, { error: "Record not found" }));
           continue;
+        }
+
+        const hasAccess = await hasWriteAccess(db, config, id, userId);
+        if (!hasAccess) {
+          results.push(result(op, false, { error: "Record not found or access denied" }));
+          continue;
+        }
+
+        // Conflict resolution: reject if server record is newer than the client's version
+        const clientUpdatedAt = op.data?.updatedAt || op.data?.createdAt;
+        const serverUpdatedAt = existing.updatedAt || existing.createdAt;
+
+        if (clientUpdatedAt && serverUpdatedAt) {
+          const clientTime = new Date(clientUpdatedAt).getTime();
+          const serverTime = new Date(serverUpdatedAt).getTime();
+
+          if (!isNaN(clientTime) && !isNaN(serverTime) && serverTime > clientTime) {
+            results.push(result(op, false, { error: "Conflict: Server has newer data" }));
+            continue;
+          }
         }
 
         const updateData = pickFields(op.data, config.updateFields);
@@ -563,18 +541,24 @@ export async function POST(request: NextRequest) {
           await db
             .update(config.table)
             .set(updateData)
-            .where(and(eq(config.idColumn, id), eq(config.ownerColumn, userId)));
+            .where(eq(config.idColumn, id));
         }
         results.push(result(op, true, { status: "updated", recordId: id }));
         continue;
       }
 
       if (op.action === "delete") {
+        const existing = await findOwned(db, config, id, userId);
+        if (!existing) {
+          results.push(result(op, false, { error: "Record not found or you do not have permission to delete it" }));
+          continue;
+        }
+
         if (op.entity === "plant") {
           await db.transaction(async (tx: any) => {
             await tx
               .delete(plants)
-              .where(and(eq(plants.id, id), eq(plants.userId, userId)));
+              .where(eq(plants.id, id));
             await tx
               .delete(careEvents)
               .where(and(eq(careEvents.plantId, id), eq(careEvents.userId, userId)));
@@ -584,14 +568,11 @@ export async function POST(request: NextRequest) {
             await tx
               .delete(progressEntries)
               .where(and(eq(progressEntries.plantId, id), eq(progressEntries.userId, userId)));
-            await tx
-              .delete(reminders)
-              .where(and(eq(reminders.plantId, id), eq(reminders.userId, userId)));
           });
         } else {
           await db
             .delete(config.table)
-            .where(and(eq(config.idColumn, id), eq(config.ownerColumn, userId)));
+            .where(eq(config.idColumn, id));
         }
         results.push(result(op, true, { status: "deleted", recordId: id }));
         continue;

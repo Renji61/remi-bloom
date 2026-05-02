@@ -38,6 +38,8 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    volumes:
+      - ./public/uploads:/app/public/uploads
 
 volumes:
   pgdata:

@@ -38,6 +38,9 @@ export function FaviconSettings() {
           setUploadedImageId(imageId);
           const blobUrl = await getImageUrl(imageId);
           if (blobUrl) setUploadedImageUrl(blobUrl);
+        } else if (saved.startsWith("/uploads/")) {
+          setUploadedImageId(saved);
+          setUploadedImageUrl(saved);
         }
       }
       setLoading(false);
@@ -63,11 +66,10 @@ export function FaviconSettings() {
         await deleteUploadedImage(uploadedImageId);
         if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
       }
-      const image = await uploadImage(file);
-      const blobUrl = await getImageUrl(image.id);
-      setUploadedImageId(image.id);
-      setUploadedImageUrl(blobUrl);
-      await applyFavicon(`upload:${image.id}`);
+      const imageUrl = await uploadImage(file);
+      setUploadedImageId(imageUrl);
+      setUploadedImageUrl(imageUrl);
+      await applyFavicon(imageUrl);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
