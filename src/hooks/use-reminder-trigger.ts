@@ -43,6 +43,11 @@ export function useReminderTrigger() {
     return scheduledTime <= nowHHMM;
   }
 
+  /** Normalizes a date value to "YYYY-MM-DD", handling both ISO strings and PostgreSQL timestamps. */
+  function formatDateOnly(raw: string): string {
+    return raw.split("T")[0].split(" ")[0];
+  }
+
   useEffect(() => {
     async function checkAndAlert() {
       try {
@@ -90,7 +95,7 @@ export function useReminderTrigger() {
 
           await sendNotification(config, {
             title: `Care Task Due: ${item.title}`,
-            body: `Task "${item.title}"${plantInfo} is due today (${item.date}${item.time ? ` at ${item.time}` : ""}).${item.note ? `\n\nNote: ${item.note}` : ""}`,
+            body: `Task "${item.title}"${plantInfo} is due today (${formatDateOnly(item.date)}${item.time ? ` at ${item.time}` : ""}).${item.note ? `\n\nNote: ${item.note}` : ""}`,
             priority: 7,
           });
         }
@@ -109,7 +114,7 @@ export function useReminderTrigger() {
 
           await sendNotification(config, {
             title: `Reminder: ${reminder.title}`,
-            body: `Reminder "${reminder.title}"${plantInfo} is due today (${reminder.date}${reminder.time ? ` at ${reminder.time}` : ""}).${reminder.note ? `\n\nNote: ${reminder.note}` : ""}`,
+            body: `Reminder "${reminder.title}"${plantInfo} is due today (${formatDateOnly(reminder.date)}${reminder.time ? ` at ${reminder.time}` : ""}).${reminder.note ? `\n\nNote: ${reminder.note}` : ""}`,
             priority: 6,
           });
         }
@@ -124,7 +129,7 @@ export function useReminderTrigger() {
           alertedIds.current.add(todo.id);
           await sendNotification(config, {
             title: `Todo Due: ${todo.title}`,
-            body: `Todo "${todo.title}" is due today (${todo.date}${todo.time ? ` at ${todo.time}` : ""}).${todo.description ? `\n\n${todo.description}` : ""}`,
+            body: `Todo "${todo.title}" is due today (${formatDateOnly(todo.date)}${todo.time ? ` at ${todo.time}` : ""}).${todo.description ? `\n\n${todo.description}` : ""}`,
             priority: 5,
           });
         }
