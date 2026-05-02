@@ -160,6 +160,14 @@ export default function SharePage() {
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
   const [pendingInviteCode, setPendingInviteCode] = useState<string>("");
 
+  const [editingScopeMemberId, setEditingScopeMemberId] = useState<string | null>(null);
+  const [editScope, setEditScope] = useState<GardenScope>("full");
+  const [editScopeLocationIds, setEditScopeLocationIds] = useState<string[]>([]);
+  const [editScopePlantIds, setEditScopePlantIds] = useState<string[]>([]);
+
+  const [editingGardenName, setEditingGardenName] = useState(false);
+  const [editedGardenName, setEditedGardenName] = useState("");
+
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [importGardenId, setImportGardenId] = useState<string | null>(null);
@@ -211,6 +219,10 @@ export default function SharePage() {
     const code = generateInviteCode();
     const now = new Date().toISOString();
 
+    // Automatically share all the owner's current plants with the garden
+    const ownerPlants = allPlants.filter((p) => p.userId === currentUserId);
+    const initialSharedPlantIds = ownerPlants.map((p) => p.id);
+
     const newGarden: SharedGarden = {
       id: generateId(),
       ownerId: currentUserId,
@@ -227,7 +239,7 @@ export default function SharePage() {
           invitedBy: currentUserId,
         },
       ],
-      sharedPlantIds: [],
+      sharedPlantIds: initialSharedPlantIds,
       pendingInvites: [
         {
           code,
@@ -338,6 +350,57 @@ export default function SharePage() {
     },
     [managingGarden, setSharedGardens, sharedGardens]
   );
+
+  // --- Update Garden Name ---
+  const handleUpdateGardenName = useCallback(async () => {
+    if (!managingGarden || !editedGardenName.trim()) return;
+
+    const updated: SharedGarden = {
+      ...managingGarden,
+      gardenName: editedGardenName.trim(),
+    };
+
+    await updateSharedGarden(updated);
+    setSharedGardens(sharedGardens.map((g) => (g.id === updated.id ? updated : g)));
+    setManagingGarden(updated);
+    setEditingGardenName(false);
+  }, [managingGarden, editedGardenName, setSharedGardens, sharedGardens]);
+
+  // --- Update Member Scope ---
+  const handleUpdateMemberScope = useCallback(
+    async (memberId: string) => {
+      if (!managingGarden) return;
+
+      const updated: SharedGarden = {
+        ...managingGarden,
+        members: managingGarden.members.map((m) => {
+          if (m.id !== memberId) return m;
+          return {
+            ...m,
+            scope: {
+              type: editScope,
+              locationIds: editScope === "location" ? editScopeLocationIds : [],
+              plantIds: editScope === "collection" ? editScopePlantIds : [],
+            },
+          };
+        }),
+      };
+
+      await updateSharedGarden(updated);
+      setSharedGardens(sharedGardens.map((g) => (g.id === updated.id ? updated : g)));
+      setManagingGarden(updated);
+      setEditingScopeMemberId(null);
+    },
+    [managingGarden, editScope, editScopeLocationIds, editScopePlantIds, setSharedGardens, sharedGardens]
+  );
+
+  // --- Start editing a member's scope ---
+  const startEditingScope = useCallback((member: SharedMember) => {
+    setEditingScopeMemberId(member.id);
+    setEditScope(member.scope.type);
+    setEditScopeLocationIds(member.scope.locationIds ?? []);
+    setEditScopePlantIds(member.scope.plantIds ?? []);
+  }, []);
 
   // --- Join Garden (Bug 1 fix: API first, fallback to IndexedDB) ---
   const handleLookupCode = useCallback(async () => {
@@ -530,17 +593,25 @@ export default function SharePage() {
   const handleTransferOwnership = useCallback(async () => {
     if (!managingGarden || !transferTargetId) return;
 
+    let serverSuccess = false;
     try {
-      await fetch("/api/shared-gardens/transfer-ownership", {
+      const res = await fetch("/api/shared-gardens/transfer-ownership", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gardenId: managingGarden.id, newOwnerId: transferTargetId }),
       });
+      serverSuccess = res.ok;
+      if (!serverSuccess) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Server rejected transfer:", res.status, errBody);
+      }
     } catch {
-      // Offline fallback: update local
+      console.warn("Network error during transfer, applying locally");
+      // Fall through to apply changes locally
     }
 
+    // Apply changes locally (whether server succeeded or not)
     const updated: SharedGarden = {
       ...managingGarden,
       ownerId: transferTargetId,
@@ -1186,6 +1257,7 @@ export default function SharePage() {
             setShowAddMember(false);
             setPendingInviteCode("");
             setShowTransferConfirm(false);
+            setEditingScopeMemberId(null);
           }
         }}
       >
@@ -1230,6 +1302,51 @@ export default function SharePage() {
                   </div>
                 </div>
 
+                {/* Garden Name (editable by owner) */}
+                <div className="rounded-2xl bg-surface-container/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60">
+                    Garden Name
+                  </p>
+                  {isOwner && editingGardenName ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        value={editedGardenName}
+                        onChange={(e) => setEditedGardenName(e.target.value)}
+                        placeholder="Enter garden name"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleUpdateGardenName();
+                          if (e.key === "Escape") setEditingGardenName(false);
+                        }}
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleUpdateGardenName} disabled={!editedGardenName.trim()}>
+                        <Check size={14} />
+                      </Button>
+                      <button
+                        onClick={() => setEditingGardenName(false)}
+                        className="rounded-lg p-1.5 text-on-surface-variant/60 hover:bg-surface-container-high transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-2">
+                      <p className="text-sm font-semibold text-on-surface">{managingGarden.gardenName}</p>
+                      {isOwner && (
+                        <button
+                          onClick={() => {
+                            setEditedGardenName(managingGarden.gardenName);
+                            setEditingGardenName(true);
+                          }}
+                          className="rounded-lg p-1 text-on-surface-variant/40 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Member List */}
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60">
@@ -1244,40 +1361,148 @@ export default function SharePage() {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.03 }}
-                        className="flex items-center justify-between rounded-2xl bg-surface-container/40 px-3.5 py-2.5"
+                        className="rounded-2xl bg-surface-container/40 px-3.5 py-2.5"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant">
-                            {member.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-on-surface">{member.name}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              {member.role === "owner" && (
-                                <Shield size={10} className="text-amber-400" />
-                              )}
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${roleBadgeClass(member.role)}`}
-                              >
-                                {member.role}
-                              </span>
-                              {member.scope && member.scope.type !== "full" && (
-                                <span className="text-[9px] text-on-surface-variant/50">
-                                  {member.scope.type === "location"
-                                    ? `${member.scope.locationIds?.length ?? 0} location(s)`
-                                    : `${member.scope.plantIds?.length ?? 0} plant(s)`}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant">
+                              {member.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-on-surface">{member.name}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                {member.role === "owner" && (
+                                  <Shield size={10} className="text-amber-400" />
+                                )}
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${roleBadgeClass(member.role)}`}
+                                >
+                                  {member.role}
                                 </span>
-                              )}
+                                <button
+                                  onClick={() => startEditingScope(member)}
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold transition-all hover:opacity-80 ${
+                                    isOwner && member.role !== "owner"
+                                      ? "bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]/80 cursor-pointer border border-[var(--theme-primary)]/20"
+                                      : "text-on-surface-variant/50 cursor-default"
+                                  }`}
+                                >
+                                  {member.scope?.type === "full"
+                                    ? "Full Access"
+                                    : member.scope?.type === "location"
+                                      ? `${member.scope.locationIds?.length ?? 0} location(s)`
+                                      : `${member.scope.plantIds?.length ?? 0} plant(s)`}
+                                </button>
+                              </div>
                             </div>
                           </div>
+                          {isOwner && member.role !== "owner" && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => startEditingScope(member)}
+                                className="rounded-lg p-1.5 text-on-surface-variant/40 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 transition-colors"
+                                title="Edit scope"
+                              >
+                                <Shield size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveMember(member.id)}
+                                className="rounded-lg p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                              >
+                                <UserMinus size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        {isOwner && member.role !== "owner" && (
-                          <button
-                            onClick={() => handleRemoveMember(member.id)}
-                            className="rounded-lg p-1.5 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+
+                        {/* Inline Scope Editor */}
+                        {editingScopeMemberId === member.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="mt-3 rounded-2xl bg-surface-container/30 p-3 space-y-3"
                           >
-                            <UserMinus size={14} />
-                          </button>
+                            <div className="flex gap-2">
+                              {(["full", "location", "collection"] as GardenScope[]).map((s) => (
+                                <button
+                                  key={s}
+                                  onClick={() => {
+                                    setEditScope(s);
+                                    setEditScopeLocationIds([]);
+                                    setEditScopePlantIds([]);
+                                  }}
+                                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-2 text-xs font-semibold transition-all ${
+                                    editScope === s
+                                      ? "bg-[var(--theme-primary)]/20 ring-1 ring-[var(--theme-primary)] text-[var(--theme-primary)]"
+                                      : "bg-surface-container-high text-on-surface-variant/60 hover:bg-surface-container-higher"
+                                  }`}
+                                >
+                                  {s === "full" ? "Full Access" : s === "location" ? "Location" : "Collection"}
+                                </button>
+                              ))}
+                            </div>
+
+                            {editScope === "location" && (
+                              <div className="max-h-28 overflow-y-auto space-y-1 rounded-2xl bg-surface-container/20 p-2">
+                                {allLocations.length === 0 ? (
+                                  <p className="text-xs text-on-surface-variant/50">No locations.</p>
+                                ) : (
+                                  allLocations.map((loc) => (
+                                    <label key={loc.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+                                      <input
+                                        type="checkbox"
+                                        checked={editScopeLocationIds.includes(loc.id)}
+                                        onChange={() => {
+                                          setEditScopeLocationIds((prev) =>
+                                            prev.includes(loc.id)
+                                              ? prev.filter((id) => id !== loc.id)
+                                              : [...prev, loc.id]
+                                          );
+                                        }}
+                                        className="rounded border-outline/30 text-[var(--theme-primary)]"
+                                      />
+                                      <span className="text-xs text-on-surface">{loc.name}</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+
+                            {editScope === "collection" && (
+                              <div className="max-h-28 overflow-y-auto space-y-1 rounded-2xl bg-surface-container/20 p-2">
+                                {allPlants.length === 0 ? (
+                                  <p className="text-xs text-on-surface-variant/50">No plants.</p>
+                                ) : (
+                                  allPlants.map((plant) => (
+                                    <label key={plant.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+                                      <input
+                                        type="checkbox"
+                                        checked={editScopePlantIds.includes(plant.id)}
+                                        onChange={() => {
+                                          setEditScopePlantIds((prev) =>
+                                            prev.includes(plant.id)
+                                              ? prev.filter((id) => id !== plant.id)
+                                              : [...prev, plant.id]
+                                          );
+                                        }}
+                                        className="rounded border-outline/30 text-[var(--theme-primary)]"
+                                      />
+                                      <span className="text-xs text-on-surface">{plant.emoji} {plant.name}</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => setEditingScopeMemberId(null)}>
+                                Cancel
+                              </Button>
+                              <Button size="sm" onClick={() => handleUpdateMemberScope(member.id)}>
+                                Update Scope
+                              </Button>
+                            </div>
+                          </motion.div>
                         )}
                       </motion.div>
                     ))

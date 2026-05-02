@@ -51,28 +51,43 @@ export function useScopedPlants(plants: Plant[]): Plant[] {
 
       switch (member.scope.type) {
         case "full": {
-          // All plants in sharedPlantIds
-          for (const pid of sharedSet) {
-            visiblePlantIds.add(pid);
-          }
-          break;
-        }
-        case "location": {
-          // Plants whose locationId is in the scope's locationIds
-          const locationIds = new Set(member.scope.locationIds || []);
-          for (const plant of ownerPlants) {
-            if (sharedSet.has(plant.id) && plant.locationId && locationIds.has(plant.locationId)) {
+          // Full scope: show ALL the owner's plants.
+          // If sharedPlantIds is also populated (whitelist), intersect with it;
+          // otherwise (empty = no whitelist) show all owner plants.
+          if (sharedSet.size > 0) {
+            for (const pid of sharedSet) {
+              visiblePlantIds.add(pid);
+            }
+          } else {
+            for (const plant of ownerPlants) {
               visiblePlantIds.add(plant.id);
             }
           }
           break;
         }
+        case "location": {
+          // Plants whose locationId is in the scope's locationIds.
+          // If sharedPlantIds is populated, intersect with it; otherwise show
+          // all owner plants matching by location.
+          const locationIds = new Set(member.scope.locationIds || []);
+          for (const plant of ownerPlants) {
+            if (plant.locationId && locationIds.has(plant.locationId)) {
+              if (sharedSet.size === 0 || sharedSet.has(plant.id)) {
+                visiblePlantIds.add(plant.id);
+              }
+            }
+          }
+          break;
+        }
         case "collection": {
-          // Plants whose id is in the scope's plantIds
+          // Plants whose id is in the scope's plantIds.
+          // If sharedPlantIds is populated, intersect with it.
           const scopePlantIds = new Set(member.scope.plantIds || []);
           for (const plant of ownerPlants) {
-            if (sharedSet.has(plant.id) && scopePlantIds.has(plant.id)) {
-              visiblePlantIds.add(plant.id);
+            if (scopePlantIds.has(plant.id)) {
+              if (sharedSet.size === 0 || sharedSet.has(plant.id)) {
+                visiblePlantIds.add(plant.id);
+              }
             }
           }
           break;

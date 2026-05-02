@@ -263,14 +263,26 @@ async function hasWriteAccess(db: any, config: EntityConfig, id: string, userId:
     const gardens = await db
       .select({
         id: sharedGardens.id,
+        ownerId: sharedGardens.ownerId,
         sharedPlantIds: sharedGardens.sharedPlantIds,
       })
       .from(sharedGardens)
       .where(
         sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
       );
-    const sharedPlantIds = new Set(gardens.flatMap((g: any) => g.sharedPlantIds || []));
-    if (sharedPlantIds.has(targetPlantId)) return true;
+    // If sharedPlantIds is empty, the member has access to ALL the owner's plants
+    const hasFullAccess = gardens.some((g: any) => {
+      const sharedIds = (g.sharedPlantIds || []) as string[];
+      if (sharedIds.length === 0) {
+        // Empty array means "share all" — check the plant belongs to this garden's owner
+        const member = g.members?.find((m: any) => m.id === userId);
+        if (member && member.role !== "owner") {
+          return record.userId === g.ownerId;
+        }
+      }
+      return sharedIds.includes(targetPlantId);
+    });
+    if (hasFullAccess) return true;
   }
   return false;
 }
@@ -360,6 +372,27 @@ export async function GET() {
     );
   const sharedPlantIds = [...new Set(userGardens.flatMap(g => g.sharedPlantIds || []))];
 
+  // Determine if the current user is a non-owner member of any garden.
+  // When member gardens have empty sharedPlantIds, it means "share all
+  // the owner's plants" — fetch the owners' plant IDs so they're included.
+  const memberGardens = userGardens.filter(g =>
+    Array.isArray(g.members) && g.members.some((m: any) => m.id === userId && m.role !== "owner")
+  );
+  const ownerIds = [...new Set(memberGardens.map(g => g.ownerId))];
+
+  // If sharedPlantIds is empty but the user is a member of gardens,
+  // include ALL of the owners' plants (full-scope default)
+  let additionalOwnerPlantIds: string[] = [];
+  if (sharedPlantIds.length === 0 && ownerIds.length > 0) {
+    const ownerPlants = await db
+      .select({ id: plants.id })
+      .from(plants)
+      .where(inArray(plants.userId, ownerIds));
+    additionalOwnerPlantIds = ownerPlants.map(p => p.id);
+  }
+
+  const allVisiblePlantIds = [...new Set([...sharedPlantIds, ...additionalOwnerPlantIds])];
+
   const [
     plantsData,
     careEventsData,
@@ -373,21 +406,21 @@ export async function GET() {
     settingsData,
     auditLogsData,
   ] = await Promise.all([
-    sharedPlantIds.length > 0
-      ? db.select().from(plants).where(or(eq(plants.userId, userId), inArray(plants.id, sharedPlantIds)))
+    allVisiblePlantIds.length > 0
+      ? db.select().from(plants).where(or(eq(plants.userId, userId), inArray(plants.id, allVisiblePlantIds)))
       : db.select().from(plants).where(eq(plants.userId, userId)),
-    sharedPlantIds.length > 0
-      ? db.select().from(careEvents).where(or(eq(careEvents.userId, userId), inArray(careEvents.plantId, sharedPlantIds)))
+    allVisiblePlantIds.length > 0
+      ? db.select().from(careEvents).where(or(eq(careEvents.userId, userId), inArray(careEvents.plantId, allVisiblePlantIds)))
       : db.select().from(careEvents).where(eq(careEvents.userId, userId)),
     db.select().from(plantLocations).where(eq(plantLocations.userId, userId)),
     db.select().from(tags).where(eq(tags.userId, userId)),
     db.select().from(inventoryItems).where(eq(inventoryItems.userId, userId)),
-    sharedPlantIds.length > 0
-      ? db.select().from(journalEntries).where(or(eq(journalEntries.userId, userId), inArray(journalEntries.plantId, sharedPlantIds)))
+    allVisiblePlantIds.length > 0
+      ? db.select().from(journalEntries).where(or(eq(journalEntries.userId, userId), inArray(journalEntries.plantId, allVisiblePlantIds)))
       : db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
     db.select().from(gardenCells).where(eq(gardenCells.userId, userId)),
-    sharedPlantIds.length > 0
-      ? db.select().from(progressEntries).where(or(eq(progressEntries.userId, userId), inArray(progressEntries.plantId, sharedPlantIds)))
+    allVisiblePlantIds.length > 0
+      ? db.select().from(progressEntries).where(or(eq(progressEntries.userId, userId), inArray(progressEntries.plantId, allVisiblePlantIds)))
       : db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
     db.select().from(actionItems).where(eq(actionItems.userId, userId)),
     db.select().from(settings).where(like(settings.key, `${userId}:%`)),
