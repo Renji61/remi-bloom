@@ -55,9 +55,10 @@ export function PlantCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: (index ?? 0) * 0.01, duration: 0.3 }}
+      className="h-full"
     >
-      <Card className="group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-[var(--theme-primary)]/30">
-        <CardContent className="p-4">
+      <Card className="group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-[var(--theme-primary)]/30 h-full">
+        <CardContent className="p-4 flex flex-col h-full">
           {/* Top Row */}
           <div className="flex items-start gap-3">
             {/* Emoji / Photo */}
@@ -127,49 +128,51 @@ export function PlantCard({
             </div>
           </div>
 
-          {/* Tags */}
-          {plantTags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {plantTags.map((tag) => {
-                const hex = tag.color.replace("#", "");
-                const r = parseInt(hex.substring(0, 2), 16);
-                const g = parseInt(hex.substring(2, 4), 16);
-                const b = parseInt(hex.substring(4, 6), 16);
-                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                const textColor = brightness > 128 ? "rgba(0,0,0,0.7)" : "#fff";
-                return (
-                  <span
-                    key={tag.id}
-                    className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium"
-                    style={{
-                      backgroundColor: tag.color + "30",
-                      color: textColor,
-                    }}
-                  >
+          {/* Tags & Last Care — flex-grow area to push quick actions to bottom */}
+          <div className="flex-1">
+            {plantTags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {plantTags.map((tag) => {
+                  const hex = tag.color.replace("#", "");
+                  const r = parseInt(hex.substring(0, 2), 16);
+                  const g = parseInt(hex.substring(2, 4), 16);
+                  const b = parseInt(hex.substring(4, 6), 16);
+                  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                  const textColor = brightness > 128 ? "rgba(0,0,0,0.7)" : "#fff";
+                  return (
                     <span
-                      className="h-1 w-1 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    {tag.name}
-                  </span>
-                );
-              })}
-            </div>
-          )}
+                      key={tag.id}
+                      className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium"
+                      style={{
+                        backgroundColor: tag.color + "30",
+                        color: textColor,
+                      }}
+                    >
+                      <span
+                        className="h-1 w-1 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Last Care */}
-          {lastCareEvent && (
-            <div
-              onClick={onOpenDetail}
-              className="mt-2 flex items-center gap-1.5 rounded-xl bg-surface-container/50 px-2.5 py-1.5"
-            >
-              <Clock size={10} className="text-on-surface-variant/50" />
-              <span className="text-[10px] text-on-surface-variant/60">
-                {careEventLabel(lastCareEvent.type)} —{" "}
-                {formatDateShort(new Date(lastCareEvent.date))}
-              </span>
-            </div>
-          )}
+            {/* Last Care */}
+            {lastCareEvent && (
+              <div
+                onClick={onOpenDetail}
+                className="mt-2 flex items-center gap-1.5 rounded-xl bg-surface-container/50 px-2.5 py-1.5"
+              >
+                <Clock size={10} className="text-on-surface-variant/50" />
+                <span className="text-[10px] text-on-surface-variant/60">
+                  {careEventLabel(lastCareEvent.type)} —{" "}
+                  {formatDateShort(new Date(lastCareEvent.date))}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Quick Actions */}
           <div className="mt-2 flex gap-1.5">

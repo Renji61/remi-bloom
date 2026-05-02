@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useApiKeysStatus } from "@/hooks/use-api-keys-status";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
@@ -107,6 +108,7 @@ function groupByDate(items: ForecastItem[]): ForecastItem[] {
 
 export default function WeatherPage() {
   usePageTitle("Weather");
+  const { weatherConfigured, loaded: keysLoaded } = useApiKeysStatus();
   const currentUserId = useAppStore((s) => s.currentUserId);
   const weatherData = useAppStore((s) => s.weatherData);
   const setWeatherData = useAppStore((s) => s.setWeatherData);
@@ -280,7 +282,7 @@ export default function WeatherPage() {
         </div>
       </div>
 
-      {/* City Location Picker — always visible when settings are loaded */}
+      {/* City Location Picker — always visible when settings are loaded and key is configured */}
       {settingsLoaded && (
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -330,8 +332,24 @@ export default function WeatherPage() {
         <div className="flex items-center justify-center py-16">
           <RefreshCw size={24} className="animate-spin text-on-surface-variant/50" />
         </div>
-      ) : (!weatherLat && !weatherLon) || (location === "auto:detect" && !apiKey) ? (
-        /* No location configured */
+      ) : keysLoaded && !weatherConfigured ? (
+        /* No weather API key configured */
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10">
+              <Cloud size={24} className="text-amber-400" />
+            </div>
+            <h2 className="text-sm font-semibold text-on-surface">OpenWeather API Key Not Set</h2>
+            <p className="mt-2 text-xs text-on-surface-variant/70 leading-relaxed max-w-sm mx-auto">
+              An OpenWeather API key is required to display weather data. Ask your server administrator to set{" "}
+              <code className="text-[var(--theme-primary)] text-[10px]">WEATHER_API_KEY</code>{" "}
+              in the server environment, or add your own key in{" "}
+              <span className="text-[var(--theme-primary)]">Settings &gt; API Keys</span>.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (!weatherLat && !weatherLon && location === "auto:detect") ? (
+        /* No location configured — user hasn't picked a city yet */
         <Card>
           <CardContent className="p-6 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10">
@@ -339,9 +357,7 @@ export default function WeatherPage() {
             </div>
             <h2 className="text-sm font-semibold text-on-surface">Set Your Location</h2>
             <p className="mt-2 text-xs text-on-surface-variant/70 leading-relaxed max-w-sm mx-auto">
-              {!apiKey && location === "auto:detect"
-                ? "Add an OpenWeather API key in Settings > API Keys, then search for your city above to get weather data for your garden."
-                : "Search for your city above and click \"Set Location\" to get weather data for your garden."}
+              Search for your city above and click "Set Location" to get weather data for your garden.
             </p>
           </CardContent>
         </Card>
@@ -600,7 +616,7 @@ export default function WeatherPage() {
         </Card>
         </>
       ) : (
-        /* Empty state — should not normally happen when apiKey is set */
+        /* Empty state — should not happen under normal circumstances */
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Cloud size={40} className="mb-3 text-on-surface-variant/50" />
           <p className="text-sm font-medium text-on-surface-variant">No weather data</p>

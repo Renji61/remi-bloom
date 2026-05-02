@@ -393,6 +393,32 @@ export async function GET() {
 
   const allVisiblePlantIds = [...new Set([...sharedPlantIds, ...additionalOwnerPlantIds])];
 
+  // Compute the owner's own shared plant IDs (plants that this user owns
+  // and has shared with members). When empty, treat as "all owner's plants."
+  const ownedGardens = userGardens.filter(g => g.ownerId === userId);
+  const ownedGardensWithMembers = ownedGardens.filter(g =>
+    Array.isArray(g.members) && g.members.some((m: any) => m.role !== "owner")
+  );
+  let ownerSharedPlantIds: string[] = [];
+  if (ownedGardensWithMembers.length > 0) {
+    // Collect actual sharedPlantIds from owner's gardens
+    for (const g of ownedGardensWithMembers) {
+      const ids = (g.sharedPlantIds || []) as string[];
+      if (ids.length > 0) {
+        ownerSharedPlantIds.push(...ids);
+      }
+    }
+    // If all gardens have empty sharedPlantIds (share all), include ALL owner plants
+    if (ownerSharedPlantIds.length === 0) {
+      const ownerPlants = await db
+        .select({ id: plants.id })
+        .from(plants)
+        .where(eq(plants.userId, userId));
+      ownerSharedPlantIds = ownerPlants.map(p => p.id);
+    }
+    ownerSharedPlantIds = [...new Set(ownerSharedPlantIds)];
+  }
+
   const [
     plantsData,
     careEventsData,
@@ -411,17 +437,23 @@ export async function GET() {
       : db.select().from(plants).where(eq(plants.userId, userId)),
     allVisiblePlantIds.length > 0
       ? db.select().from(careEvents).where(or(eq(careEvents.userId, userId), inArray(careEvents.plantId, allVisiblePlantIds)))
-      : db.select().from(careEvents).where(eq(careEvents.userId, userId)),
+      : ownerSharedPlantIds.length > 0
+        ? db.select().from(careEvents).where(or(eq(careEvents.userId, userId), inArray(careEvents.plantId, ownerSharedPlantIds)))
+        : db.select().from(careEvents).where(eq(careEvents.userId, userId)),
     db.select().from(plantLocations).where(eq(plantLocations.userId, userId)),
     db.select().from(tags).where(eq(tags.userId, userId)),
     db.select().from(inventoryItems).where(eq(inventoryItems.userId, userId)),
     allVisiblePlantIds.length > 0
       ? db.select().from(journalEntries).where(or(eq(journalEntries.userId, userId), inArray(journalEntries.plantId, allVisiblePlantIds)))
-      : db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
+      : ownerSharedPlantIds.length > 0
+        ? db.select().from(journalEntries).where(or(eq(journalEntries.userId, userId), inArray(journalEntries.plantId, ownerSharedPlantIds)))
+        : db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
     db.select().from(gardenCells).where(eq(gardenCells.userId, userId)),
     allVisiblePlantIds.length > 0
       ? db.select().from(progressEntries).where(or(eq(progressEntries.userId, userId), inArray(progressEntries.plantId, allVisiblePlantIds)))
-      : db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
+      : ownerSharedPlantIds.length > 0
+        ? db.select().from(progressEntries).where(or(eq(progressEntries.userId, userId), inArray(progressEntries.plantId, ownerSharedPlantIds)))
+        : db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
     db.select().from(actionItems).where(eq(actionItems.userId, userId)),
     db.select().from(settings).where(like(settings.key, `${userId}:%`)),
     db.select().from(auditLogs).where(eq(auditLogs.userId, userId)),

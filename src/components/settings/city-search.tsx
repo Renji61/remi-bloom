@@ -55,15 +55,22 @@ export function CitySearch({
   }, []);
 
   const searchCities = useCallback(async (q: string) => {
-    if (!apiKey || q.length < 2) {
+    if (q.length < 2) {
       setResults([]);
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(
-        `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${apiKey}`
-      );
+      // Use the server-side geocoding proxy when we don't have a client-side key.
+      // The proxy resolves the key from the env var (or user setting) server-side.
+      let url: string;
+      if (apiKey) {
+        url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${apiKey}`;
+      } else {
+        url = `/api/weather/geocode?q=${encodeURIComponent(q)}`;
+      }
+
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Geocoding API error");
       const data: { name: string; country: string; state?: string; lat: number; lon: number }[] = await res.json();
       setResults(

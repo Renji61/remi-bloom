@@ -620,7 +620,7 @@ export function IdentifyPlantDialog({
       }
       const description = careLines.length > 0
         ? careLines.join("\n")
-        : `Identified via PlantIntelligenceService on ${new Date().toLocaleDateString()}. Confidence: ${identificationResult.species.confidence}%.`;
+        : `🌿 ${identificationResult.species.name || identificationResult.species.scientificName || "Plant"}`;
 
       // Build care schedule tasks — only include user-selected ones
       const careTasks: ActionItem[] = [];

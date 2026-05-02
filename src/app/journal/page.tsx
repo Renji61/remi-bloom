@@ -117,13 +117,19 @@ export default function JournalPage() {
       })),
     ];
 
-    // Filter by visible plant IDs for non-owner members
+    // Filter by visible plant IDs for non-owner members.
+    // Always include the user's own plants regardless of shared garden scope.
     if (gardenPermissions.role !== null && gardenPermissions.role !== "owner") {
       const visible = gardenPermissions.visiblePlantIds;
       if (visible.size > 0) {
-        combined = combined.filter((e) => visible.has(e.plantId));
+        combined = combined.filter(
+          (e) => visible.has(e.plantId) || plantMap[e.plantId]?.userId === currentUserId
+        );
       } else {
-        combined = [];
+        // visiblePlantIds is empty — only show entries for the user's own plants
+        combined = combined.filter(
+          (e) => plantMap[e.plantId]?.userId === currentUserId
+        );
       }
     }
 

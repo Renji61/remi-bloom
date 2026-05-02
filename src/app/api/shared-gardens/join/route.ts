@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
         role,
         scope,
         memberCount: updatedMembers.length,
+        plantCount: (garden.sharedPlantIds as string[])?.length ?? 0,
       },
     });
   } catch (err) {

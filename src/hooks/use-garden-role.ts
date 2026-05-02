@@ -105,14 +105,14 @@ export function useGardenRole(): GardenPermissions {
     return {
       role: highestRole,
       visiblePlantIds,
-      // Members can always edit/add/delete their OWN plants in the app.
-      // The shared garden role only affects permissions for shared data.
-      // These permissions control UI actions on the member's personal plants.
+      // Members can always edit/log care for their own plants.
+      // Observers can view shared plants but should not log care on shared plants;
+      // however, they can still log entries for their own personal plants.
       canEdit: true,
       canManage: false, // only owner can manage garden settings
       canAddPlants: true, // members can still add their own plants
       canDeletePlants: true, // members can delete their own plants
-      canLogCare: isCaretaker ? false : true, // observers can't log care on shared plants
+      canLogCare: true, // all members can log care/entries for their own plants
     };
   }, [currentUserId, sharedGardens]);
 }

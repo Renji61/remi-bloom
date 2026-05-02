@@ -72,6 +72,24 @@ export async function GET(request: NextRequest) {
     const memberCount = (garden.members as any[])?.length ?? 0;
     const sharedPlantIds = (garden.sharedPlantIds as string[]) ?? [];
 
+    // If sharedPlantIds is empty, it means "share all plants" — count the
+    // garden owner's plants to show an accurate number.
+    let plantCount = sharedPlantIds.length;
+    if (plantCount === 0) {
+      try {
+        const { plants } = await import("@/db/schema/plants");
+        const { count } = await import("drizzle-orm");
+        const result = await db
+          .select({ count: count() })
+          .from(plants)
+          .where(eq(plants.userId, garden.ownerId))
+          .then((r) => r[0]);
+        plantCount = result?.count ?? 0;
+      } catch {
+        // Non-fatal — just show 0
+      }
+    }
+
     return NextResponse.json({
       id: garden.id,
       gardenName: garden.gardenName,
@@ -79,6 +97,7 @@ export async function GET(request: NextRequest) {
       createdAt: garden.createdAt,
       isCurrentUserMember,
       sharedPlantIds,
+      plantCount,
     });
   } catch (err) {
     console.error("Unexpected error in shared-gardens lookup:", err);

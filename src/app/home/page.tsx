@@ -71,6 +71,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useScopedPlants } from "@/hooks/use-scoped-plants";
 import { useGardenRole } from "@/hooks/use-garden-role";
 import { useSharedGardenSync } from "@/hooks/use-shared-garden-sync";
+import { useApiKeysStatus } from "@/hooks/use-api-keys-status";
 import { getCareEventsForPlantToday } from "@/lib/db";
 import type { CareEvent, Plant, JournalEntry, ActionItem } from "@/lib/db";
 
@@ -1350,15 +1351,33 @@ function CareIcon({ type }: { type: CareEvent["type"] }) {
 }
 
 function IdentifyPlantButton({ onClick }: { onClick: () => void }) {
+  const { plantidConfigured, perenualConfigured, loaded } = useApiKeysStatus();
+  const canIdentify = plantidConfigured || perenualConfigured;
+  const disabled = loaded && !canIdentify;
+
   return (
-    <button
-      onClick={onClick}
-      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--theme-primary)]/10 px-3 py-1.5 text-[10px] font-semibold text-[var(--theme-primary)] transition-all hover:bg-[var(--theme-primary)]/20 mr-1"
-    >
-      <Sparkles size={12} />
-      <span className="hidden sm:inline">Identify Plants</span>
-      <span className="sm:hidden">Identify Plant</span>
-    </button>
+    <div className="relative group mr-1">
+      <button
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+        className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold transition-all ${
+          disabled
+            ? "bg-surface-container-high/50 text-on-surface-variant/40 cursor-not-allowed"
+            : "bg-[var(--theme-primary)]/10 text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/20"
+        }`}
+      >
+        <Sparkles size={12} />
+        <span className="hidden sm:inline">Identify Plants</span>
+        <span className="sm:hidden">Identify Plant</span>
+      </button>
+      {disabled && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+          <div className="whitespace-nowrap rounded-xl bg-surface/95 px-3 py-2 text-[10px] text-on-surface-variant shadow-2xl shadow-black/40 border border-outline-variant/40 backdrop-blur-2xl">
+            Plant.id / Perenual API key is not set
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

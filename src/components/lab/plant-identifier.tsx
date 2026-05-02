@@ -571,7 +571,7 @@ export function PlantIdentifier() {
         userId: currentUserId ?? "",
         name,
         scientificName: sciName,
-        description: `Identified via PlantIntelligenceService on ${new Date().toLocaleDateString()}. Confidence: ${identificationResult.species.confidence}%.`,
+        description: `🌿 ${identificationResult.species.name || identificationResult.species.scientificName || "Auto-identified plant"}`,
         emoji: "🌿",
         imageUrl,
         createdAt: new Date().toISOString(),

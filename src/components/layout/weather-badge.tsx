@@ -1,10 +1,11 @@
 "use client";
 
-import { Sun, Moon, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Bell } from "lucide-react";
+import { Sun, Moon, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Bell, AlertTriangle } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { getUserSetting } from "@/lib/db";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useApiKeysStatus } from "@/hooks/use-api-keys-status";
 
 function getWeatherIcon(main: string, size = 16) {
   switch (main) {
@@ -29,6 +30,27 @@ function getWeatherIcon(main: string, size = 16) {
 
 export function WeatherBadge() {
   const weatherData = useAppStore((s) => s.weatherData);
+  const { weatherConfigured, loaded } = useApiKeysStatus();
+
+  // No weather API key available — show disabled indicator
+  if (loaded && !weatherConfigured) {
+    return (
+      <div
+        className="relative group flex items-center gap-2 rounded-xl bg-surface-container-high/60 px-2.5 py-1.5 opacity-40 cursor-not-allowed"
+        title="OpenWeather API key is not set"
+      >
+        <div className="flex items-center gap-1">
+          <AlertTriangle size={14} className="text-on-surface-variant/30" aria-hidden="true" />
+          <span className="text-[10px] text-on-surface-variant/30">--°C</span>
+        </div>
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+          <div className="whitespace-nowrap rounded-xl bg-surface/95 px-3 py-2 text-[10px] text-on-surface-variant shadow-2xl shadow-black/40 border border-outline-variant/40 backdrop-blur-2xl">
+            OpenWeather API key is not set
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!weatherData?.list?.[0]) {
     return (

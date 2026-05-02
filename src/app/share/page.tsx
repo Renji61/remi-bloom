@@ -443,7 +443,7 @@ export default function SharePage() {
           role: data.pendingInvites?.[0]?.role ?? "caretaker",
           scope: data.pendingInvites?.[0]?.scope ?? DEFAULT_SCOPE,
           memberCount: data.memberCount ?? 0,
-          sharedCount: data.sharedPlantIds?.length ?? 0,
+          sharedCount: data.plantCount ?? data.sharedPlantIds?.length ?? 0,
         });
         return;
       }
@@ -521,7 +521,7 @@ export default function SharePage() {
             type: "joined",
             garden: data.garden,
             memberCount: data.garden.members?.length ?? 0,
-            sharedCount: data.garden.sharedPlantIds?.length ?? 0,
+            sharedCount: data.plantCount ?? data.garden.sharedPlantIds?.length ?? 0,
           });
         } else {
           setJoinStatus({ type: "error", message: "Failed to join garden. The invite code may be invalid." });
@@ -911,7 +911,9 @@ export default function SharePage() {
                                     {garden.members?.length ?? 0} member{(garden.members?.length ?? 0) !== 1 ? "s" : ""}
                                   </span>
                                   <span className="text-[10px] text-on-surface-variant/40">
-                                    {(garden.sharedPlantIds?.length ?? 0)} plants shared
+                                    {garden.ownerId === currentUserId
+                                      ? `${allPlants.filter((p) => p.userId === currentUserId).length} plants shared`
+                                      : `${garden.sharedPlantIds?.length ?? 0} plants shared`}
                                   </span>
                                 </div>
                                 <p className="mt-1 text-[10px] text-on-surface-variant/40">
