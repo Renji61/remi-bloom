@@ -141,7 +141,6 @@ async function callPlantIdApi(
 
   const formData = new FormData();
   formData.append("images", imageBlob, "plant.jpg");
-  formData.append("organs", "leaf,flower,fruit,bark,habit");
 
   const url = "https://api.plant.id/v3/identification";
   const response = await fetchWithRetry(url, {
