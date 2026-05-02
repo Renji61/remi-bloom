@@ -13,6 +13,7 @@ export function CameraView({ onCapture }: CameraViewProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [videoAspect, setVideoAspect] = useState<number>(4 / 3);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -37,6 +38,14 @@ export function CameraView({ onCapture }: CameraViewProps) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // Read the video's intrinsic dimensions once it starts playing
+  const handleVideoPlay = useCallback(() => {
+    const video = videoRef.current;
+    if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+      setVideoAspect(video.videoWidth / video.videoHeight);
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -107,12 +116,17 @@ export function CameraView({ onCapture }: CameraViewProps) {
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      <div className="relative aspect-[4/3] bg-black">
+      <div
+        className="relative bg-black"
+        style={{ aspectRatio: videoAspect }}
+      >
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
+          onLoadedMetadata={handleVideoPlay}
+          onPlay={handleVideoPlay}
           className="h-full w-full object-cover"
         />
         {/* Scan Frame Overlay */}

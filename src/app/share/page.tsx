@@ -201,8 +201,11 @@ export default function SharePage() {
   }, [currentUserId]);
 
   // --- Create Garden ---
+  const [creating, setCreating] = useState(false);
   const handleCreateGarden = useCallback(async () => {
     if (!gardenName.trim() || !currentUserId || !currentUser) return;
+
+    setCreating(true);
 
     const code = generateInviteCode();
     const now = new Date().toISOString();
@@ -234,7 +237,9 @@ export default function SharePage() {
       ],
     };
 
-    // Write-through to the server so other users can look up the invite code immediately
+    // Write-through to the server so other users can look up the invite code immediately.
+    // This MUST succeed before we show the garden to the user.
+    let serverOk = false;
     try {
       const serverResponse = await fetch("/api/shared-gardens", {
         method: "POST",
@@ -242,14 +247,31 @@ export default function SharePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newGarden),
       });
-      if (!serverResponse.ok) {
-        // Server rejected the garden; fall through so the sync queue picks it up
-        console.warn("Server rejected garden creation, falling back to sync queue:", serverResponse.status);
+      if (serverResponse.ok) {
+        serverOk = true;
+      } else {
+        const errBody = await serverResponse.json().catch(() => ({}));
+        console.error("Server rejected garden creation:", serverResponse.status, errBody);
       }
-    } catch {
-      // Offline: the sync queue will propagate the garden later
+    } catch (err) {
+      console.error("Network error during garden creation:", err);
     }
 
+    // If we are offline, fall back to IndexedDB + sync queue so the garden is
+    // available locally and will propagate when connectivity returns.
+    if (!serverOk) {
+      await addSharedGarden(newGarden);
+      addGardenToStore(newGarden);
+      setGardenName("");
+      setShowCreateDialog(false);
+      setCreateScope("full");
+      setCreateScopeLocationIds([]);
+      setCreateScopePlantIds([]);
+      setCreating(false);
+      return;
+    }
+
+    // Server saved successfully. Also save locally for fast offline access.
     await addSharedGarden(newGarden);
     addGardenToStore(newGarden);
     setGardenName("");
@@ -257,6 +279,7 @@ export default function SharePage() {
     setCreateScope("full");
     setCreateScopeLocationIds([]);
     setCreateScopePlantIds([]);
+    setCreating(false);
   }, [gardenName, currentUserId, currentUser, addGardenToStore, createScope, createScopeLocationIds, createScopePlantIds]);
 
   // --- Delete Garden ---
@@ -354,10 +377,20 @@ export default function SharePage() {
         return;
       }
 
-      // API lookup failed — try local IndexedDB (useful for same-device, offline scenarios)
+      // API lookup failed — show a clear message
+      const errBody = await response.json().catch(() => ({}));
+      const status = response.status;
+      let message: string;
+      if (status === 404) {
+        message = "No garden found with that invite code on the server. The garden may not have been created yet, or the code is incorrect.";
+      } else if (status === 400) {
+        message = errBody.error || "Invalid invite code format.";
+      } else {
+        message = errBody.error || `Server error (${status}). Please try again later.`;
+      }
       setJoinStatus({
         type: "error",
-        message: "No garden found with that invite code. The garden may not yet be synced to the server, or the code is incorrect.",
+        message,
       });
     } catch {
       // Network error during API lookup — the code is correct but we're offline
@@ -1133,9 +1166,13 @@ export default function SharePage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreateGarden} disabled={!gardenName.trim()}>
-                <Plus size={14} />
-                Create Garden
+              <Button onClick={handleCreateGarden} disabled={!gardenName.trim() || creating}>
+                {creating ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <Plus size={14} />
+                )}
+                {creating ? "Creating..." : "Create Garden"}
               </Button>
             </div>
           </div>

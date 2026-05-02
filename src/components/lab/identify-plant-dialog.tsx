@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -358,8 +358,8 @@ function ConfirmIdentityScreen({
         </CardContent>
       </Card>
 
-      {/* Other matches (if confidence < 80%) */}
-      {result.topMatches.length > 1 && result.species.confidence < 80 && (
+      {/* Other matches — always visible so the user can pick a different one */}
+      {result.topMatches.length > 1 && (
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
             Other Matches
@@ -493,6 +493,14 @@ export function IdentifyPlantDialog({
     setScanProgress({ step: 0, message: "" });
     setSaving(false);
   };
+
+  // Reset state when the dialog opens, even if the previous close didn't
+  // trigger onOpenChange (e.g. programmatic close via parent setter).
+  useEffect(() => {
+    if (open) {
+      reset();
+    }
+  }, [open]);
 
   const handleCapture = (data: string, file?: File) => {
     setImageData(data);
@@ -681,13 +689,32 @@ export function IdentifyPlantDialog({
     }
   };
 
-  const handleSelectMatch = (name: string, sciName: string) => {
+  const handleSelectMatch = async (name: string, sciName: string) => {
     if (!identificationResult) return;
+
+    // Immediately update the UI so the user sees their selection
     setIdentificationResult({
       ...identificationResult,
       species: { ...identificationResult.species, name, scientificName: sciName, confidence: 100 },
     });
     setScreen("confirm");
+
+    // Fetch fresh care data for the selected species
+    try {
+      const careData = await IdentificationManager.fetchCareData(sciName, currentUserId ?? undefined);
+      setIdentificationResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          careSchedules: careData.careSchedules,
+          fertilizers: careData.fertilizers,
+          sunlightNeeds: careData.sunlightNeeds,
+        };
+      });
+    } catch {
+      // If care data fetch fails, keep the original data — it's better than nothing
+      console.warn("Could not fetch care data for selected match:", sciName);
+    }
   };
 
   const handleManualSearchSelect = async (name: string, sciName: string) => {
@@ -825,9 +852,10 @@ export function IdentifyPlantDialog({
             <ScanningOverlay progress={scanProgress} onCancel={reset} />
           )}
 
-          {/* Confirm Identity screen */}
+          {/* Confirm Identity screen — key forces reset when species changes */}
           {screen === "confirm" && identificationResult && (
             <ConfirmIdentityScreen
+              key={identificationResult.species.scientificName}
               result={identificationResult}
               onConfirm={handleConfirm}
               onSelectMatch={handleSelectMatch}

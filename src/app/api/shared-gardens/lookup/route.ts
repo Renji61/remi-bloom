@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   const db = getDb();
+  const normalizedCode = code.toUpperCase();
   const garden = await db
     .select({
       id: sharedGardens.id,
@@ -29,8 +30,8 @@ export async function GET(request: NextRequest) {
     .from(sharedGardens)
     .where(
       or(
-        eq(sharedGardens.code, code.toUpperCase()),
-        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: code.toUpperCase() }])}::jsonb`
+        eq(sharedGardens.code, normalizedCode),
+        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}::jsonb`
       )
     )
     .then((rows) => rows[0]);
