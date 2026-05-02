@@ -11,6 +11,7 @@ import { gardenCells } from "@/db/schema/garden-cells";
 import { progressEntries } from "@/db/schema/progress";
 import { sharedGardens } from "@/db/schema/shared-gardens";
 import { actionItems } from "@/db/schema/action-items";
+import { auditLogs } from "@/db/schema/audit-logs";
 import { settings } from "@/db/schema/settings";
 import { and, eq, inArray, like, or, sql } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
@@ -194,6 +195,15 @@ const entityConfigs: Record<string, EntityConfig> = {
     updateFields: ["gardenName", "code", "members", "sharedPlantIds", "pendingInvites"],
     defaults: () => ({ createdAt: new Date().toISOString(), members: [], sharedPlantIds: [], pendingInvites: [] }),
   },
+  auditLog: {
+    table: auditLogs,
+    idColumn: auditLogs.id,
+    ownerColumn: auditLogs.userId,
+    ownerKey: "userId",
+    createFields: ["username", "action", "details", "timestamp"],
+    updateFields: ["username", "action", "details", "timestamp"],
+    defaults: () => ({ timestamp: new Date().toISOString(), details: "" }),
+  },
 };
 
 const requiredCreateFields: Record<string, string[]> = {
@@ -206,6 +216,7 @@ const requiredCreateFields: Record<string, string[]> = {
   progressEntry: ["plantId", "plantName", "date"],
   actionItem: ["title", "source", "type", "date", "category"],
   sharedGarden: ["gardenName", "code"],
+  auditLog: ["username", "action"],
 };
 
 function pickFields(data: any, fields: string[]) {
@@ -343,6 +354,7 @@ export async function GET() {
     progressData,
     actionItemsData,
     settingsData,
+    auditLogsData,
   ] = await Promise.all([
     sharedPlantIds.length > 0
       ? db.select().from(plants).where(or(eq(plants.userId, userId), inArray(plants.id, sharedPlantIds)))
@@ -362,6 +374,7 @@ export async function GET() {
       : db.select().from(progressEntries).where(eq(progressEntries.userId, userId)),
     db.select().from(actionItems).where(eq(actionItems.userId, userId)),
     db.select().from(settings).where(like(settings.key, `${userId}:%`)),
+    db.select().from(auditLogs).where(eq(auditLogs.userId, userId)),
   ]);
 
   // Parse settings into a flat map
@@ -381,6 +394,7 @@ export async function GET() {
     progress: progressData,
     sharedGardens: userGardens,
     actionItems: actionItemsData,
+    auditLogs: auditLogsData,
     settings: settingsMap,
   });
 }

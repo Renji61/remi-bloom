@@ -12,11 +12,15 @@ export function RegistrationSettings() {
   const [open, setOpen] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [envLocked, setEnvLocked] = useState(false);
 
   useEffect(() => {
     fetch("/api/registration-status")
       .then((r) => r.json())
-      .then((data) => setOpen(data.open))
+      .then((data) => {
+        setOpen(data.open);
+        setEnvLocked(data.envLocked === true);
+      })
       .catch(() => setOpen(false))
       .finally(() => setLoading(false));
   }, []);
@@ -32,7 +36,11 @@ export function RegistrationSettings() {
         body: JSON.stringify({ open: !open }),
       });
       if (response.ok) {
-        setOpen(!open);
+        const data = await response.json();
+        setOpen(data.open);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error("Toggle failed:", err.error);
       }
     } catch {
       // Silently fail
@@ -82,7 +90,7 @@ export function RegistrationSettings() {
           </span>
           <Button
             onClick={handleToggle}
-            disabled={toggling || !isAdmin}
+            disabled={toggling || !isAdmin || envLocked}
             size="sm"
             variant={open === false ? "primary" : "secondary"}
           >
@@ -95,6 +103,12 @@ export function RegistrationSettings() {
             )}
           </Button>
         </div>
+      )}
+
+      {envLocked && isAdmin && (
+        <p className="text-[10px] text-amber-400/70 text-center">
+          This setting is overridden by the <code className="text-amber-300">DISABLE_OPEN_REGISTRATION</code> environment variable. Set it to <code className="text-amber-300">false</code> or remove it to enable toggling here.
+        </p>
       )}
 
       {!isAdmin && !loading && (

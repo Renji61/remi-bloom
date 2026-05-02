@@ -6,7 +6,7 @@ import { Camera, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface CameraViewProps {
-  onCapture: (imageData: string) => void;
+  onCapture: (imageData: string, imageFile?: File) => void;
 }
 
 export function CameraView({ onCapture }: CameraViewProps) {
@@ -55,8 +55,20 @@ export function CameraView({ onCapture }: CameraViewProps) {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-    stopCamera();
-    onCapture(dataUrl);
+    // Also produce a File directly to avoid a fetch(dataURL) round-trip
+    canvas.toBlob(
+      (blob) => {
+        stopCamera();
+        if (blob) {
+          const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+          onCapture(dataUrl, file);
+        } else {
+          onCapture(dataUrl);
+        }
+      },
+      "image/jpeg",
+      0.8,
+    );
   }, [onCapture, stopCamera]);
 
   if (permissionDenied) {

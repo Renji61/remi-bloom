@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     if (err.name === "AbortError") {
       return NextResponse.json({ error: "Plant.id API request timed out" }, { status: 504 });
     }
+    console.error("Plant.id API fetch error:", err);
     return NextResponse.json({ error: "Failed to contact Plant.id API" }, { status: 502 });
   } finally {
     clearTimeout(timeoutId);

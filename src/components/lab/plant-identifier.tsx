@@ -761,14 +761,8 @@ export function PlantIdentifier() {
       {/* Camera View */}
       {showCamera && !imageData && (
         <CameraView
-          onCapture={(data) => {
-            // CameraView gives base64 JPEG, wrap it as a File
-            fetch(data)
-              .then((r) => r.blob())
-              .then((blob) => {
-                const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
-                handleCapture(data, file);
-              });
+          onCapture={(data, file) => {
+            handleCapture(data, file);
           }}
         />
       )}

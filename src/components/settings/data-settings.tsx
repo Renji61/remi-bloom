@@ -25,7 +25,7 @@ import {
   DialogTitle,
   Input,
 } from "@/components/ui";
-import { db, setUserSetting } from "@/lib/db";
+import { db, setUserSetting, enqueueSyncOperation } from "@/lib/db";
 import {
   forceSeedTags,
   forceSeedLocations,
@@ -33,6 +33,7 @@ import {
 } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
 import { loadUserData } from "@/lib/load-user-data";
+import { replaySyncQueue } from "@/lib/db";
 import {
   getPlantsForUser,
   getLocationsForUser,
@@ -173,17 +174,72 @@ export function DataSettings() {
       // Assign all imported data to the current user
       const assignUser = (items: any[]) =>
         items?.map((item: any) => ({ ...item, userId: currentUserId ?? item.userId })) ?? [];
+      const assignUserWithId = (items: any[]) =>
+        items?.map((item: any) => ({ ...item, userId: currentUserId ?? item.userId, id: item.id ?? crypto.randomUUID() })) ?? [];
 
-      if (data.plants?.length) await db.plants.bulkAdd(assignUser(data.plants));
-      if (data.careEvents?.length) await db.careEvents.bulkAdd(assignUser(data.careEvents));
-      if (data.locations?.length) await db.plantLocations.bulkAdd(assignUser(data.locations));
-      if (data.tags?.length) await db.tags.bulkAdd(data.tags);
-      if (data.inventoryItems?.length) await db.inventoryItems.bulkAdd(assignUser(data.inventoryItems));
-      if (data.journalEntries?.length) await db.journalEntries.bulkAdd(assignUser(data.journalEntries));
-      if (data.gardenCells?.length) await db.gardenCells.bulkAdd(assignUser(data.gardenCells));
-      if (data.progressEntries?.length) await db.progressEntries.bulkAdd(assignUser(data.progressEntries));
-      if (data.actionItems?.length) await db.actionItems.bulkAdd(assignUser(data.actionItems));
-      if (data.uploadedImages?.length) await db.uploadedImages.bulkAdd(assignUser(data.uploadedImages));
+      // Enqueue sync operations for imported items so they get pushed to the server
+      const enqueueAll = async (items: any[], entity: import("@/lib/db").SyncEntity) => {
+        if (!currentUserId) return;
+        for (const item of items) {
+          await enqueueSyncOperation(currentUserId, entity, "create", item, item.id);
+        }
+      };
+
+      // Clear existing data for this user (this already runs)
+      await clearCurrentUserData();
+
+      if (data.plants?.length) {
+        const items = assignUser(data.plants);
+        await db.plants.bulkAdd(items);
+        await enqueueAll(items, "plant");
+      }
+      if (data.careEvents?.length) {
+        const items = assignUser(data.careEvents);
+        await db.careEvents.bulkAdd(items);
+        await enqueueAll(items, "careEvent");
+      }
+      if (data.locations?.length) {
+        const items = assignUser(data.locations);
+        await db.plantLocations.bulkAdd(items);
+        await enqueueAll(items, "location");
+      }
+      if (data.tags?.length) {
+        const items = data.tags;
+        await db.tags.bulkAdd(items);
+        await enqueueAll(items, "tag");
+      }
+      if (data.inventoryItems?.length) {
+        const items = assignUser(data.inventoryItems);
+        await db.inventoryItems.bulkAdd(items);
+        await enqueueAll(items, "inventoryItem");
+      }
+      if (data.journalEntries?.length) {
+        const items = assignUser(data.journalEntries);
+        await db.journalEntries.bulkAdd(items);
+        await enqueueAll(items, "journalEntry");
+      }
+      if (data.gardenCells?.length) {
+        const items = assignUser(data.gardenCells);
+        await db.gardenCells.bulkAdd(items);
+        if (currentUserId) {
+          await enqueueSyncOperation(currentUserId, "gardenCells", "replace", { cells: items }, "all");
+        }
+      }
+      if (data.progressEntries?.length) {
+        const items = assignUser(data.progressEntries);
+        await db.progressEntries.bulkAdd(items);
+        await enqueueAll(items, "progressEntry");
+      }
+      if (data.actionItems?.length) {
+        const items = assignUser(data.actionItems);
+        await db.actionItems.bulkAdd(items);
+        await enqueueAll(items, "actionItem");
+      }
+      if (data.uploadedImages?.length) {
+        const items = assignUserWithId(data.uploadedImages);
+        await db.uploadedImages.bulkAdd(items);
+        // uploadedImages are not synced to the server (stored as blobs in IndexedDB)
+      }
       if (data.userSettings?.length) {
         // Re-prefix settings with current user
         for (const s of data.userSettings) {
@@ -196,32 +252,7 @@ export function DataSettings() {
         }
       }
 
-      // Also push imported data to server API if available
-      try {
-        await fetch("/api/data", { method: "DELETE" });
-        const syncPayload = {
-          plants: assignUser(data.plants),
-          careEvents: assignUser(data.careEvents),
-          locations: assignUser(data.locations),
-          tags: data.tags,
-          inventory: assignUser(data.inventoryItems),
-          journals: assignUser(data.journalEntries),
-          gardenCells: assignUser(data.gardenCells),
-          progress: assignUser(data.progressEntries),
-          sharedGardens: assignUser(data.sharedGardens),
-          actionItems: assignUser(data.actionItems),
-          settings: {},
-        };
-        await fetch("/api/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(syncPayload),
-        });
-      } catch {
-        // Server may not be available; data is in IndexedDB
-      }
-
-      // Force load from IndexedDB (skip API to use imported data)
+      // Reload from IndexedDB (skip API to use imported data)
       const { loadFromIndexedDB } = await import("@/lib/load-user-data");
       const store = useAppStore.getState();
       if (currentUserId) {
@@ -264,24 +295,11 @@ export function DataSettings() {
 
   // ── Seeding handlers ──
 
-  /** Push seeded data to the server API if available. */
+  /** Push seeded data to the server by replaying the sync queue. */
   async function syncSeededData() {
+    if (!currentUserId) return;
     try {
-      const plants = await db.plants.where("userId").equals(currentUserId ?? "").toArray();
-      const locations = await db.plantLocations.where("userId").equals(currentUserId ?? "").toArray();
-      const tags = await db.tags.where("userId").equals(currentUserId ?? "").toArray();
-
-      const operations = [
-        ...plants.map((p) => ({ action: "create" as const, entity: "plant" as const, data: p })),
-        ...locations.map((l) => ({ action: "create" as const, entity: "location" as const, data: l })),
-        ...tags.map((t) => ({ action: "create" as const, entity: "tag" as const, data: t })),
-      ];
-
-      await fetch("/api/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operations }),
-      });
+      await replaySyncQueue(currentUserId);
     } catch {
       // Server may not be available; data is in IndexedDB
     }

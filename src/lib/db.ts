@@ -366,7 +366,8 @@ export type SyncEntity =
   | "progressEntry"
   | "sharedGarden"
   | "actionItem"
-  | "setting";
+  | "setting"
+  | "auditLog";
 
 export interface SyncQueueOperation {
   id: string;
@@ -711,16 +712,25 @@ export async function seedMockData(
   if (plantCount === 0 && plants.length > 0) {
     const plantsWithUser = plants.map((p) => ({ ...p, userId: userId ?? "" }));
     await db.plants.bulkAdd(plantsWithUser);
+    for (const p of plantsWithUser) {
+      if (userId) await enqueueAndReplay(userId, "plant", "create", p, p.id);
+    }
   }
   const locationCount = await db.plantLocations.count();
   if (locationCount === 0 && locations.length > 0) {
     const locationsWithUser = locations.map((l) => ({ ...l, userId: userId ?? "" }));
     await db.plantLocations.bulkAdd(locationsWithUser);
+    for (const l of locationsWithUser) {
+      if (userId) await enqueueAndReplay(userId, "location", "create", l, l.id);
+    }
   }
   const tagCount = await db.tags.count();
   if (tagCount === 0 && tags.length > 0) {
     const tagsWithUser = tags.map((t) => ({ ...t, userId: userId ?? "" }));
     await db.tags.bulkAdd(tagsWithUser);
+    for (const t of tagsWithUser) {
+      if (userId) await enqueueAndReplay(userId, "tag", "create", t, t.id);
+    }
   }
 }
 
@@ -735,6 +745,9 @@ export async function seedDefaultTagsForUser(
   if (existingTags.length === 0 && tags.length > 0) {
     const tagsWithUser = tags.map((t) => ({ ...t, userId }));
     await db.tags.bulkAdd(tagsWithUser);
+    for (const t of tagsWithUser) {
+      await enqueueAndReplay(userId, "tag", "create", t, t.id);
+    }
   }
 }
 
@@ -749,6 +762,9 @@ export async function seedDefaultLocationsForUser(
   if (existingLocations.length === 0 && locations.length > 0) {
     const locationsWithUser = locations.map((l) => ({ ...l, userId }));
     await db.plantLocations.bulkAdd(locationsWithUser);
+    for (const l of locationsWithUser) {
+      await enqueueAndReplay(userId, "location", "create", l, l.id);
+    }
   }
 }
 
@@ -757,6 +773,9 @@ export async function seedCareEvents(events: (Omit<CareEvent, "userId">)[], user
   if (count === 0 && events.length > 0) {
     const eventsWithUser = events.map((e) => ({ ...e, userId: userId ?? "" }));
     await db.careEvents.bulkAdd(eventsWithUser);
+    for (const e of eventsWithUser) {
+      if (userId) await enqueueAndReplay(userId, "careEvent", "create", e, e.id);
+    }
   }
 }
 
@@ -765,6 +784,9 @@ export async function seedInventory(items: Omit<InventoryItem, "userId">[], user
   if (count === 0 && items.length > 0) {
     const itemsWithUser = items.map((i) => ({ ...i, userId: userId ?? "" }));
     await db.inventoryItems.bulkAdd(itemsWithUser);
+    for (const item of itemsWithUser) {
+      if (userId) await enqueueAndReplay(userId, "inventoryItem", "create", item, item.id);
+    }
   }
 }
 
@@ -779,6 +801,9 @@ export async function forceSeedTags(
   if (tags.length > 0) {
     const tagsWithUser = tags.map((t) => ({ ...t, userId }));
     await db.tags.bulkAdd(tagsWithUser);
+    for (const t of tagsWithUser) {
+      await enqueueAndReplay(userId, "tag", "create", t, t.id);
+    }
   }
 }
 
@@ -793,6 +818,9 @@ export async function forceSeedLocations(
   if (locations.length > 0) {
     const locationsWithUser = locations.map((l) => ({ ...l, userId }));
     await db.plantLocations.bulkAdd(locationsWithUser);
+    for (const l of locationsWithUser) {
+      await enqueueAndReplay(userId, "location", "create", l, l.id);
+    }
   }
 }
 
@@ -807,6 +835,9 @@ export async function forceSeedPlants(
   if (plants.length > 0) {
     const plantsWithUser = plants.map((p) => ({ ...p, userId }));
     await db.plants.bulkAdd(plantsWithUser);
+    for (const p of plantsWithUser) {
+      await enqueueAndReplay(userId, "plant", "create", p, p.id);
+    }
   }
 }
 
@@ -1217,14 +1248,16 @@ export async function addAuditLog(
   details: string
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await db.auditLogs.add({
+  const entry = {
     id,
     userId,
     username,
     action,
     details,
     timestamp: new Date().toISOString(),
-  });
+  };
+  await db.auditLogs.add(entry);
+  await enqueueAndReplay(userId, "auditLog", "create", entry, id);
   return id;
 }
 

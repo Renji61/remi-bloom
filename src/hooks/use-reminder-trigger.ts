@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/stores/app-store";
-import { getUserSetting, db } from "@/lib/db";
+import { getUserSetting, updateActionItem } from "@/lib/db";
 import type { NotificationConfig, NotificationEngine } from "@/lib/notification-engine";
 
 /**
@@ -94,7 +94,7 @@ export function useReminderTrigger() {
 
           // Only mark notificationSent if the send actually succeeded
           if (result.success) {
-            await db.actionItems.put({ ...item, notificationSent: true });
+            await updateActionItem({ ...item, notificationSent: true });
           }
         }
       } catch {

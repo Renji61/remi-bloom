@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest) {
 
   // Check env var first (admin's static preference)
   if (process.env.DISABLE_OPEN_REGISTRATION === "true") {
-    return NextResponse.json({ open: false });
+    return NextResponse.json({ open: false, envLocked: true });
   }
 
   // Check database setting (can be toggled at runtime by an admin)
@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest) {
     .where(eq(settings.key, "__server:disable_open_registration"))
     .then((r) => r[0]);
 
-  return NextResponse.json({ open: setting?.value !== "true" });
+  return NextResponse.json({ open: setting?.value !== "true", envLocked: false });
 }
 
 /**

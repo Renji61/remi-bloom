@@ -265,6 +265,7 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
         db.progressEntries,
         db.sharedGardens,
         db.actionItems,
+        db.auditLogs,
         db.settings,
       ],
       async () => {
@@ -285,6 +286,7 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
           )
           .delete();
         await db.actionItems.where("userId").equals(userId).delete();
+        await db.auditLogs.where("userId").equals(userId).delete();
 
         // Bulk insert new data
         if (payload.plants.length > 0) await db.plants.bulkAdd(payload.plants);
@@ -305,6 +307,8 @@ async function cacheToIndexedDB(userId: string, payload: SyncPayload) {
           await db.sharedGardens.bulkAdd(payload.sharedGardens);
         if (payload.actionItems.length > 0)
           await db.actionItems.bulkAdd(payload.actionItems);
+        if (payload.auditLogs?.length > 0)
+          await db.auditLogs.bulkAdd(payload.auditLogs);
 
         // Cache user settings
         for (const [key, value] of Object.entries(payload.settings)) {

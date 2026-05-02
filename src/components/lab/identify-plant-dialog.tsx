@@ -564,6 +564,7 @@ export function IdentifyPlantDialog({
         setScreen("manualSearch");
       }
     } catch (err) {
+      console.error("Plant identification failed:", err);
       setError(err instanceof Error ? err.message : "Identification failed. Try again.");
       setScreen("capture");
     }
@@ -788,16 +789,8 @@ export function IdentifyPlantDialog({
           {/* Camera View */}
           {showCamera && !imageData && (
             <CameraView
-              onCapture={(data) => {
-                fetch(data)
-                  .then((r) => r.blob())
-                  .then((blob) => {
-                    const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
-                    handleCapture(data, file);
-                  })
-                  .catch(() => {
-                    handleCapture(data);
-                  });
+              onCapture={(data, file) => {
+                handleCapture(data, file);
               }}
             />
           )}

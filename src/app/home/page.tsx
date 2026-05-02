@@ -1326,7 +1326,7 @@ function IdentifyPlantButton({ onClick }: { onClick: () => void }) {
     >
       <Sparkles size={12} />
       <span className="hidden sm:inline">Identify Plants</span>
-      <span className="sm:hidden">Scan</span>
+      <span className="sm:hidden">Identify Plant</span>
     </button>
   );
 }

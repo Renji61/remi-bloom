@@ -37,7 +37,7 @@ export default function SettingsPage() {
           <TabsTrigger value="apikeys" className="shrink-0 sm:flex-1">API Keys</TabsTrigger>
           <TabsTrigger value="currency" className="shrink-0 sm:flex-1">Currency</TabsTrigger>
           <TabsTrigger value="weather" className="shrink-0 sm:flex-1">Weather</TabsTrigger>
-          <TabsTrigger value="server" className="shrink-0 sm:flex-1">Server</TabsTrigger>
+          <TabsTrigger value="server" className="shrink-0 sm:flex-1">Registration</TabsTrigger>
           <TabsTrigger value="data" className="shrink-0 sm:flex-1">Data</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 sm:flex-1">About</TabsTrigger>
         </TabsList>
@@ -77,7 +77,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-on-surface">
-                    Server Settings
+                    Registration Settings
                   </h2>
                   <p className="text-xs text-on-surface-variant/70">
                     Manage public access to your self-hosted server

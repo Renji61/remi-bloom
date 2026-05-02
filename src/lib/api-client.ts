@@ -58,6 +58,7 @@ export interface SyncPayload {
   progress: any[];
   sharedGardens: any[];
   actionItems: any[];
+  auditLogs: any[];
   settings: Record<string, string>;
 }
 
