@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     .where(
       or(
         eq(sharedGardens.code, code.toUpperCase()),
-        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: code.toUpperCase() }])}`
+        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: code.toUpperCase() }])}::jsonb`
       )
     )
     .then((rows) => rows[0]);

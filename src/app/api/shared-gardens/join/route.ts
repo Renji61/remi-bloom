@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     .where(
       or(
         eq(sharedGardens.code, normalizedCode),
-        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}`
+        sql`${sharedGardens.pendingInvites} @> ${JSON.stringify([{ code: normalizedCode }])}::jsonb`
       )
     )
     .then((rows) => rows[0]);

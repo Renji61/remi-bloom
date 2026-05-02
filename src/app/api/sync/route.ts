@@ -250,7 +250,7 @@ async function hasWriteAccess(db: any, config: EntityConfig, id: string, userId:
   else if (record.plantId) targetPlantId = record.plantId;
   if (targetPlantId) {
     const gardens = await db.select().from(sharedGardens).where(
-      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
+      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
     );
     const sharedPlantIds = new Set(gardens.flatMap((g: any) => g.sharedPlantIds || []));
     if (sharedPlantIds.has(targetPlantId)) return true;
@@ -327,7 +327,7 @@ export async function GET() {
   const userGardens = await db.select().from(sharedGardens).where(
     or(
       eq(sharedGardens.ownerId, userId),
-      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
+      sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
     )
   );
   const sharedPlantIds = [...new Set(userGardens.flatMap(g => g.sharedPlantIds || []))];

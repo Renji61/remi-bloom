@@ -17,7 +17,7 @@ export async function GET() {
     .where(
       or(
         eq(sharedGardens.ownerId, userId),
-        sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}`
+        sql`${sharedGardens.members} @> ${JSON.stringify([{ id: userId }])}::jsonb`
       )
     );
 
