@@ -8,6 +8,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
+  ArrowUpDown,
+  CalendarDays,
   Plus,
   Pencil,
   Trash2,
@@ -83,6 +85,10 @@ export default function InventoryPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // Sort state
+  const [sortKey, setSortKey] = useState<"createdAt" | "name">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
   const [form, setForm] = useState({
     name: "",
     category: "supply" as InventoryItem["category"],
@@ -131,8 +137,19 @@ export default function InventoryPage() {
     if (categoryFilter) {
       list = list.filter((it) => it.category === categoryFilter);
     }
-    return list;
-  }, [items, debouncedSearch, categoryFilter]);
+    // Apply sorting
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      let cmp: number;
+      if (sortKey === "name") {
+        cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      } else {
+        cmp = (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [items, debouncedSearch, categoryFilter, sortKey, sortDirection]);
 
   const stats = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -340,6 +357,54 @@ export default function InventoryPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex gap-1 rounded-lg bg-surface-container-high/40 p-0.5">
+          <button
+            onClick={() => {
+              if (sortKey !== "name") {
+                setSortKey("name");
+                setSortDirection("asc");
+              } else {
+                setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+              }
+            }}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 ${
+              sortKey === "name"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            }`}
+          >
+            <ArrowUpDown size={12} aria-hidden="true" />
+            Name
+            <span className="text-[9px]">
+              {sortKey === "name" ? (sortDirection === "asc" ? "A→Z" : "Z→A") : ""}
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              if (sortKey !== "createdAt") {
+                setSortKey("createdAt");
+                setSortDirection("desc");
+              } else {
+                setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+              }
+            }}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 ${
+              sortKey === "createdAt"
+                ? "bg-[var(--theme-primary)]/20 text-[var(--theme-primary)]"
+                : "text-on-surface-variant/60 hover:text-on-surface"
+            }`}
+          >
+            <CalendarDays size={12} aria-hidden="true" />
+            {sortKey === "createdAt" ? (sortDirection === "desc" ? "Newest" : "Oldest") : "Date"}
+            <span className="text-[9px]">
+              {sortKey === "createdAt" ? (sortDirection === "desc" ? "↓" : "↑") : ""}
+            </span>
+          </button>
+        </div>
+      </div>
 
       {/* Item Grid */}
       {filteredItems.length === 0 ? (

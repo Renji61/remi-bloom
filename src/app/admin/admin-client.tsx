@@ -23,7 +23,7 @@ import {
   MoreVertical,
   LogOut,
 } from "lucide-react";
-import { Card, CardContent, Button, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
+import { Card, CardContent, Button, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, useConfirm } from "@/components/ui";
 import { useAppStore } from "@/stores/app-store";
 import { type User, type UserRole, type AuditLog } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
@@ -42,6 +42,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export default function AdminClient() {
+  const { confirm } = useConfirm();
   usePageTitle("Admin Dashboard");
   const router = useRouter();
   const currentUser = useAppStore((s) => s.currentUser);
@@ -180,7 +181,7 @@ export default function AdminClient() {
   };
 
   const handleDeleteUser = async (user: User) => {
-    if (!window.confirm(`Are you sure you want to permanently delete "${user.username}"? This cannot be undone.`)) {
+    if (!await confirm({ message: `Are you sure you want to permanently delete "${user.username}"? This cannot be undone.`, confirmLabel: "Delete", variant: "danger" })) {
       return;
     }
 

@@ -313,7 +313,7 @@ export default function LocationsPage() {
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            <ArrowUpDown size={12} aria-hidden="true" className="hidden sm:block" />
+            <ArrowUpDown size={12} aria-hidden="true" />
             Name
             <span className="text-[9px]">
               {sortKey === "name" ? (sortDirection === "asc" ? "A→Z" : "Z→A") : ""}
@@ -335,8 +335,11 @@ export default function LocationsPage() {
                 : "text-on-surface-variant/60 hover:text-on-surface"
             )}
           >
-            <CalendarDays size={12} aria-hidden="true" className="hidden sm:block" />
-            Date
+            <CalendarDays size={12} aria-hidden="true" />
+            {sortKey === "createdAt" ? (sortDirection === "desc" ? "Newest" : "Oldest") : "Date"}
+            <span className="text-[9px]">
+              {sortKey === "createdAt" ? (sortDirection === "desc" ? "↓" : "↑") : ""}
+            </span>
           </button>
         </div>
       </div>

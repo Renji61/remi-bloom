@@ -39,6 +39,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useConfirm,
 } from "@/components/ui";
 import { PlantCard } from "@/components/greenhouse/plant-card";
 import { PlantListView } from "@/components/greenhouse/plant-list-view";
@@ -84,6 +85,7 @@ const tagColors = [
 ];
 
 export default function HomePage() {
+  const { confirm, alert: remiAlert } = useConfirm();
   const currentUserId = useAppStore((s) => s.currentUserId);
   const currentUser = useAppStore((s) => s.currentUser);
   const greenhouseName = useAppStore((s) => s.greenhouseName);
@@ -288,7 +290,7 @@ export default function HomePage() {
       if (existing.length > 0) {
         const lastEvent = existing[existing.length - 1];
         if (lastEvent.performedBy && lastEvent.performedBy !== currentUser?.displayName) {
-          alert(`This action was just logged by ${lastEvent.performedBy}. Duplicate ignored.`);
+          await remiAlert(`This action was just logged by ${lastEvent.performedBy}. Duplicate ignored.`);
           return;
         }
       }
@@ -442,7 +444,7 @@ export default function HomePage() {
   const handleDeletePlant = async (id: string) => {
     const plant = plants.find((p) => p.id === id);
     const plantName = plant?.name ?? "this plant";
-    if (!window.confirm(`Delete ${plantName}? This will remove the plant and cannot be undone.`)) {
+    if (!await confirm({ message: `Delete ${plantName}? This will remove the plant and cannot be undone.`, confirmLabel: "Delete", variant: "danger" })) {
       return;
     }
 
@@ -1242,21 +1244,22 @@ function PlantDetail({
       {(onQuickWater || onQuickFertilize) && (
         <div className="flex gap-2">
           {onQuickWater && (
-            <Button onClick={onQuickWater} className="flex-1" size="sm">
+            <button
+              onClick={onQuickWater}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-500 transition-colors hover:bg-blue-500/20"
+            >
               <Droplets size={14} />
               Log Water
-            </Button>
+            </button>
           )}
           {onQuickFertilize && (
-            <Button
+            <button
               onClick={onQuickFertilize}
-              className="flex-1"
-              size="sm"
-              variant="secondary"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-500 transition-colors hover:bg-emerald-500/20"
             >
               <FlaskConical size={14} />
               Log Fertilize
-            </Button>
+            </button>
           )}
         </div>
       )}

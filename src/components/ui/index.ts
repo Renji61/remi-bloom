@@ -18,3 +18,4 @@ export {
   SelectItem,
 } from "./select";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { ConfirmProvider, useConfirm } from "./confirm-dialog";

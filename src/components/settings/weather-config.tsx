@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Cloud, Key, Check, Loader2, MapPin, Eye, EyeOff } from "lucide-react";
-import { Card, CardContent, Input, Button } from "@/components/ui";
+import { Cloud, Check, Loader2, MapPin } from "lucide-react";
+import { Card, CardContent, Button } from "@/components/ui";
 import { CitySearch, type CityResult } from "./city-search";
 import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
@@ -16,7 +16,6 @@ export function WeatherConfig() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -70,7 +69,6 @@ export function WeatherConfig() {
       await setUserSetting(currentUserId, "weatherLat", "");
       await setUserSetting(currentUserId, "weatherLon", "");
     }
-    await setUserSetting(currentUserId, "weatherApiKey", apiKey.trim());
 
     setSaving(false);
     setSaved(true);
@@ -88,30 +86,23 @@ export function WeatherConfig() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-on-surface">
-              OpenWeather API
+              Weather Location
             </h2>
             <p className="text-xs text-on-surface-variant/70">
-              Get a free API key at openweathermap.org/api
+              Set your city for weather alerts and forecasts
             </p>
           </div>
         </div>
 
-        {/* Toggle show/hide API key */}
-        <button
-          onClick={() => setShowKey(!showKey)}
-          className="flex items-center gap-1.5 text-xs text-on-surface-variant/60 hover:text-on-surface-variant transition-colors"
-        >
-          {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-          {showKey ? "Hide API Key" : "Show API Key"}
-        </button>
-
-        <Input
-          label="API Key"
-          type={showKey ? "text" : "password"}
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Enter your OpenWeather API key..."
-        />
+        {!apiKey && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2.5">
+            <p className="text-xs text-amber-400">
+              Add your OpenWeather API key in{" "}
+              <span className="font-semibold">Settings &gt; API Keys</span>{" "}
+              to enable city search.
+            </p>
+          </div>
+        )}
 
         <CitySearch
           apiKey={apiKey}
@@ -138,9 +129,9 @@ export function WeatherConfig() {
           ) : saved ? (
             <Check size={14} />
           ) : (
-            <Key size={14} />
+            <MapPin size={14} />
           )}
-          {saved ? "Saved!" : "Save Weather Settings"}
+          {saved ? "Saved!" : "Save Location"}
         </Button>
       </CardContent>
     </Card>

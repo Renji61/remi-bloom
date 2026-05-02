@@ -128,6 +128,7 @@ export default function SharePage() {
   const removeGardenFromStore = useAppStore((s) => s.removeSharedGarden);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [gardenName, setGardenName] = useState("");
 
   const [managingGarden, setManagingGarden] = useState<SharedGarden | null>(null);
@@ -215,7 +216,7 @@ export default function SharePage() {
       ownerId: currentUserId,
       gardenName: gardenName.trim(),
       code,
-      createdAt: now.split("T")[0],
+      createdAt: now,
       members: [
         {
           id: currentUserId,
@@ -251,27 +252,17 @@ export default function SharePage() {
         serverOk = true;
       } else {
         const errBody = await serverResponse.json().catch(() => ({}));
+        setCreateError(errBody.error || "Failed to reach the server. Garden will sync when online.");
         console.error("Server rejected garden creation:", serverResponse.status, errBody);
       }
     } catch (err) {
+      setCreateError("Could not reach the server. Garden will sync when online.");
       console.error("Network error during garden creation:", err);
     }
 
-    // If we are offline, fall back to IndexedDB + sync queue so the garden is
-    // available locally and will propagate when connectivity returns.
-    if (!serverOk) {
-      await addSharedGarden(newGarden);
-      addGardenToStore(newGarden);
-      setGardenName("");
-      setShowCreateDialog(false);
-      setCreateScope("full");
-      setCreateScopeLocationIds([]);
-      setCreateScopePlantIds([]);
-      setCreating(false);
-      return;
-    }
-
-    // Server saved successfully. Also save locally for fast offline access.
+    // Save locally regardless — the garden is always available offline.
+    // If the server POST succeeded it's already on the server; otherwise the
+    // sync queue will propagate it when connectivity returns.
     await addSharedGarden(newGarden);
     addGardenToStore(newGarden);
     setGardenName("");
@@ -1050,6 +1041,7 @@ export default function SharePage() {
         onOpenChange={(open) => {
           if (!open) {
             setShowCreateDialog(false);
+            setCreateError(null);
             setGardenName("");
             setCreateScope("full");
             setCreateScopeLocationIds([]);
@@ -1151,6 +1143,12 @@ export default function SharePage() {
                 </div>
               )}
             </div>
+
+            {createError && (
+              <div className="rounded-xl bg-error/10 border border-error/20 p-3 text-xs text-error">
+                {createError}
+              </div>
+            )}
 
             <p className="text-[10px] text-on-surface-variant/50">
               An 8-character invite code will be generated automatically.

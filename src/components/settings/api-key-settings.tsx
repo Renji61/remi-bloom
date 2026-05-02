@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Key, Eye, EyeOff, Check, Loader2, Info } from "lucide-react";
+import { Key, Eye, EyeOff, Check, Loader2, Info, Cloud } from "lucide-react";
 import { Card, CardContent, Input, Button } from "@/components/ui";
 import { getUserSetting, setUserSetting } from "@/lib/db";
 import { useAppStore } from "@/stores/app-store";
@@ -22,6 +22,7 @@ export function ApiKeySettings() {
 
   const [plantidKey, setPlantidKey] = useState("");
   const [perenualKey, setPerenualKey] = useState("");
+  const [weatherKey, setWeatherKey] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,13 +48,15 @@ export function ApiKeySettings() {
         return;
       }
 
-      const [plantid, perenual] = await Promise.all([
+      const [plantid, perenual, weather] = await Promise.all([
         getUserSetting(userId, "plantidApiKey"),
         getUserSetting(userId, "perenualApiKey"),
+        getUserSetting(userId, "weatherApiKey"),
       ]);
 
       setPlantidKey(plantid ?? "");
       setPerenualKey(perenual ?? "");
+      setWeatherKey(weather ?? "");
       setLoaded(true);
     }
     load();
@@ -78,6 +81,7 @@ export function ApiKeySettings() {
     await Promise.all([
       setUserSetting(currentUserId, "plantidApiKey", plantidKey.trim()),
       setUserSetting(currentUserId, "perenualApiKey", perenualKey.trim()),
+      setUserSetting(currentUserId, "weatherApiKey", weatherKey.trim()),
     ]);
 
     setSaving(false);
@@ -131,14 +135,29 @@ export function ApiKeySettings() {
           placeholder="Enter your Perenual API key..."
         />
 
+        {/* OpenWeather API Key */}
+        <div className="flex items-center gap-2 pt-1">
+          <Cloud size={14} className="text-sky-400" />
+          <span className="text-xs font-semibold text-on-surface-variant/80">OpenWeather</span>
+        </div>
+        <Input
+          label="OpenWeather API Key"
+          type={showKeys ? "text" : "password"}
+          value={weatherKey}
+          onChange={(e) => setWeatherKey(e.target.value)}
+          placeholder="Enter your OpenWeather API key..."
+        />
+
         <div className="flex items-start gap-2 rounded-xl bg-surface-container/50 px-3 py-2.5">
           <Info size={14} className="mt-0.5 shrink-0 text-on-surface-variant/60" />
           <p className="text-xs text-on-surface-variant/70 leading-relaxed">
             Keys set here override environment variables for your account only.
             Get a Plant.id key at{" "}
-            <span className="text-[var(--theme-primary)]">plant.id</span> and a
-            Perenual key at{" "}
-            <span className="text-[var(--theme-primary)]">perenual.com</span>.
+            <span className="text-[var(--theme-primary)]">plant.id</span>,
+            a Perenual key at{" "}
+            <span className="text-[var(--theme-primary)]">perenual.com</span>,
+            and an OpenWeather key at{" "}
+            <span className="text-[var(--theme-primary)]">openweathermap.org</span>.
           </p>
         </div>
 

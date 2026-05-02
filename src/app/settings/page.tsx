@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useAppStore } from "@/stores/app-store";
 import { Settings, Info, Cloud, DollarSign, Key, Shield } from "lucide-react";
 import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
 import { ThemePicker } from "@/components/settings/theme-picker";
@@ -17,6 +18,9 @@ import { RegistrationSettings } from "@/components/settings/registration-setting
 
 export default function SettingsPage() {
   usePageTitle("Settings");
+  const currentUser = useAppStore((s) => s.currentUser);
+  const isAdmin = currentUser?.role === "admin";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -37,7 +41,7 @@ export default function SettingsPage() {
           <TabsTrigger value="apikeys" className="shrink-0 sm:flex-1">API Keys</TabsTrigger>
           <TabsTrigger value="currency" className="shrink-0 sm:flex-1">Currency</TabsTrigger>
           <TabsTrigger value="weather" className="shrink-0 sm:flex-1">Weather</TabsTrigger>
-          <TabsTrigger value="server" className="shrink-0 sm:flex-1">Registration</TabsTrigger>
+          {isAdmin && <TabsTrigger value="server" className="shrink-0 sm:flex-1">Registration</TabsTrigger>}
           <TabsTrigger value="data" className="shrink-0 sm:flex-1">Data</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 sm:flex-1">About</TabsTrigger>
         </TabsList>
@@ -68,6 +72,7 @@ export default function SettingsPage() {
           <WeatherConfig />
         </TabsContent>
 
+        {isAdmin && (
         <TabsContent value="server">
           <Card>
             <CardContent className="p-5">
@@ -90,6 +95,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         <TabsContent value="data">
           <DataSettings />

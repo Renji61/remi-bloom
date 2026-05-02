@@ -421,15 +421,11 @@ export default function JournalPage() {
         </div>
         <button
           onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
-          className="inline-flex items-center gap-1 rounded-lg bg-surface-container-high/40 px-2.5 py-1.5 text-[10px] font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-surface-container-high/40 px-2.5 py-1.5 text-[10px] font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
         >
-          <CalendarDays size={12} aria-hidden="true" className="hidden sm:block" />
-          <span className="sm:hidden">
-            {sortOrder === "newest" ? "↓" : "↑"}
-          </span>
-          <span className="hidden sm:inline">
-            {sortOrder === "newest" ? "Newest" : "Oldest"}
-          </span>
+          <CalendarDays size={12} aria-hidden="true" />
+          <span>{sortOrder === "newest" ? "Newest" : "Oldest"}</span>
+          <span className="text-[9px]">{sortOrder === "newest" ? "↑" : "↓"}</span>
         </button>
       </div>
 
@@ -494,7 +490,7 @@ export default function JournalPage() {
                     />
                   )}
                   {gardenPermissions.canLogCare && (
-                    <div className="absolute right-3 top-3 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-3 right-3 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEditForm(entry)}
                         className="rounded-lg bg-surface-container-high p-1.5 text-on-surface-variant/60 hover:bg-surface-container-higher transition-colors"
