@@ -234,6 +234,56 @@ async function fetchCareDataForScientificName(
 // Parsing / Extraction helpers
 // ──────────────────────────────────────────────
 
+const LABEL_MAP: Record<string, string> = {
+  water: "Water",
+  fertilize: "Fertilize",
+  prune: "Prune",
+  repot: "Repot",
+  sunlight: "Sunlight",
+  soil: "Soil Care",
+  temperature: "Temperature",
+  humidity: "Humidity",
+  pest: "Pest Control",
+};
+
+/** Map Perenual watering hint strings to a rough interval in days. */
+const WATERING_FREQUENCY_DAYS: Record<string, number> = {
+  frequent: 2,
+  "very frequent": 1,
+  average: 3,
+  moderate: 3,
+  minimal: 7,
+  "keep moist": 1,
+  "keep soil moist": 1,
+  "allow to dry": 5,
+  "water regularly": 3,
+  "water sparingly": 7,
+};
+
+function inferFrequencyDays(type: string, description: string, frequency?: string): number | undefined {
+  // Try explicit frequency string first (from Perenual species.watering)
+  if (frequency) {
+    const key = frequency.toLowerCase().trim();
+    if (WATERING_FREQUENCY_DAYS[key]) return WATERING_FREQUENCY_DAYS[key];
+    // Try to extract a number from strings like "every 3 days", "every 2-3 days"
+    const match = key.match(/every\s+(\d+)/);
+    if (match) return parseInt(match[1], 10);
+  }
+  // Try the description text
+  const desc = description.toLowerCase();
+  const match = desc.match(/every\s+(\d+)/);
+  if (match) return parseInt(match[1], 10);
+  // Generic defaults per type
+  if (type === "water") return 3;
+  if (type === "fertilize") return 30;
+  if (type === "prune") return 90;
+  return undefined;
+}
+
+function displayLabel(type: string): string {
+  return LABEL_MAP[type] ?? type.charAt(0).toUpperCase() + type.slice(1);
+}
+
 function parseCareSchedules(
   guide: PerenualCareGuide | null,
   species: PerenualSpecies | null,
@@ -242,9 +292,12 @@ function parseCareSchedules(
 
   if (guide?.section) {
     for (const section of guide.section) {
+      const type = normalizeCareType(section.type);
       schedules.push({
-        type: normalizeCareType(section.type),
+        type,
+        label: displayLabel(type),
         description: section.description?.substring(0, 200) ?? "",
+        frequencyDays: inferFrequencyDays(type, section.description ?? ""),
       });
     }
   }
@@ -254,7 +307,13 @@ function parseCareSchedules(
       ? `Watering: ${species.watering}`
       : "";
     if (wateringDesc && !schedules.some((s) => s.type === "water")) {
-      schedules.push({ type: "water", description: wateringDesc, frequency: species.watering });
+      schedules.push({
+        type: "water",
+        label: "Water",
+        description: wateringDesc,
+        frequency: species.watering,
+        frequencyDays: inferFrequencyDays("water", wateringDesc, species.watering),
+      });
     }
   }
 
@@ -360,21 +419,33 @@ export const IdentificationManager = {
     let fertilizers: FertilizerSuggestion[] = [];
     let sunlightNeeds: string[] = [];
 
-    if (topResult.confidence >= 80 && topResult.scientificName) {
+    // Resolve a usable scientific name query for Perenual enrichment.
+    // Perenual queries accept both scientific and common names, but work
+    // best with the scientific name. Fall back to the top suggestion name
+    // (which may be Latin) if scientificName is empty.
+    const sciQuery = topResult.scientificName || topResult.name;
+
+    // Run Perenual enrichment when we have a name string to query with and
+    // confidence is reasonable. The old hard 80% block skipped enrichment
+    // for medium-confidence results; lowering to ~50% catches many more
+    // valid identifications while still rejecting noise.
+    const shouldEnrich = sciQuery && topResult.confidence >= 50;
+
+    if (shouldEnrich) {
       report(3, "Step 3: Retrieving expert care guides...");
 
-      const cached = await getSpeciesCache(topResult.scientificName);
+      const cached = await getSpeciesCache(sciQuery);
       if (cached) {
         species = cached.speciesData;
         careGuide = cached.careGuideData;
       } else {
-        species = await callPerenualSpecies(topResult.scientificName);
+        species = await callPerenualSpecies(sciQuery);
         if (species) {
           careGuide = await callPerenualCareGuide(species.id);
         }
         if (species) {
           await setSpeciesCache({
-            scientificName: topResult.scientificName,
+            scientificName: sciQuery,
             speciesData: species,
             careGuideData: careGuide,
             cachedAt: new Date().toISOString(),
@@ -407,7 +478,9 @@ export const IdentificationManager = {
         confidence: topResult.confidence,
         thumbnailUrl: topResult.scientificName
           ? `https://perenual.com/storage/species_image/${encodeURIComponent(topResult.scientificName)}/thumbnail.jpg`
-          : undefined,
+          : topResult.name
+            ? `https://perenual.com/storage/species_image/${encodeURIComponent(topResult.name)}/thumbnail.jpg`
+            : undefined,
         healthAssessment: topResult.healthAssessment,
       },
       topMatches: topMatches.map((m) => ({

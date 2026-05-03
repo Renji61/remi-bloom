@@ -41,9 +41,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Image file is required" }, { status: 400 });
   }
 
-  // Forward the image to Plant.id
+  // Forward the image to Plant.id v3 with details requested.
+  // The "details" param tells the API to include common_names, taxonomy, url, etc.
+  // Without this, only the basic suggestion name (usually scientific/Latin) is returned.
   const upstream = new FormData();
   upstream.append("images", imageFile, imageFile.name);
+  upstream.append("similar_images", "true");
+  upstream.append("details", "common_names,taxonomy,url,description");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -68,12 +72,24 @@ export async function POST(request: NextRequest) {
 
     const json = await response.json();
     const suggestions = json.result?.classification?.suggestions ?? [];
-    const results = suggestions.map((s: any) => ({
-      name: s.name ?? "Unknown",
-      confidence: Math.round((s.probability ?? 0) * 100),
-      scientificName: s.details?.scientific_name ?? "",
-      healthAssessment: s.details?.health_assessment ?? undefined,
-    }));
+    const results = suggestions.map((s: any) => {
+      // In v3, s.name is usually the scientific/Latin name.
+      // Details (when requested via the "details" form field) are in s.details.
+      const details = s.details ?? {};
+      const scientificName = details.scientific_name
+        ? details.scientific_name
+        : (s.name ?? "").trim();
+      const commonNames: string[] = details.common_names ?? [];
+      const name = commonNames.length > 0
+        ? commonNames[0]
+        : (s.name ?? "Unknown").trim();
+      return {
+        name,
+        confidence: Math.round((s.probability ?? 0) * 100),
+        scientificName,
+        healthAssessment: details.health_assessment ?? undefined,
+      };
+    });
 
     return NextResponse.json({ results });
   } catch (err: any) {

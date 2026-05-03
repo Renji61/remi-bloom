@@ -32,8 +32,13 @@ export function buildRichDescription(identificationResult: IdentificationResult)
       careLines.push(`☀️ Light: ${identificationResult.sunlightNeeds.join(", ")}`);
     }
     for (const cs of identificationResult.careSchedules) {
-      const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;
-      careLines.push(`${cs.label}: ${freq}`);
+      const label = cs.label || cs.type.charAt(0).toUpperCase() + cs.type.slice(1);
+      if (cs.frequencyDays) {
+        const freq = cs.frequencyDays === 1 ? "every day" : `every ${cs.frequencyDays} days`;
+        careLines.push(`${label}: ${freq}`);
+      } else if (cs.description) {
+        careLines.push(`${label}: ${cs.description.substring(0, 120)}`);
+      }
     }
     if (identificationResult.fertilizers.length > 0) {
       careLines.push(`🧪 Recommended fertilizer: ${identificationResult.fertilizers.map((f) => f.name).join(", ")}`);
